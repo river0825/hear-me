@@ -96,7 +96,7 @@ jobs:
           PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
           NOTES="$RUNNER_TEMP/notes.md"
           {
-            echo "## 變更（${PREV:-起點} → $TAG）"
+            echo "## 變更（${PREV:-起點} → ${TAG}）"
             echo
             git log --no-merges --format='- %s (%h)' ${PREV:+$PREV..}"$TAG"
             echo
