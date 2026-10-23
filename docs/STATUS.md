@@ -2,7 +2,7 @@
 
 原名〈說寫〉（shuoxie），CEO 10-23 15:5x 指示改名 Hear Me 並放上 GitHub：https://github.com/river0825/hear-me（CEO 10-23 17:4x 指示改公開）。
 
-最後更新：2026-10-23 17:20（第五輪：GitHub Actions CI/CD，v0.1.0 由 CI 打包發布）
+最後更新：2026-10-23 17:39（第五輪：晶晶體規則層、README、repo 公開）
 
 ## 是什麼
 CEO 10-23 直接交辦：「參考 Typeless 的功能，寫一個可以語音輸入的軟體」。
@@ -112,6 +112,10 @@ CEO 的 Mac（macOS 26.6.2、Apple Silicon、Apple Intelligence 未開）用選�
 - **寫 workflow 的坑**：runner 的 bash 是 3.2，變數後面接中文或全形標點一律用 `${VAR}`；`bundle.sh` 最後那行 `grep` 在自簽身分下沒有 `Authority=`（未受信任的憑證不印）會讓 `pipefail` 的腳本以 1 結束，已加 `|| true`。
 - **為什麼選 `macos-26`**：這個 app 要 macOS 26 SDK 才編得過、測試包要 macOS 26+ 才載得起來；`macos-26` 是目前唯一兩者都行的 GA 映像（`macos-15` 跑不了測試包；`xcode-27` 映像是 macOS 27.0.1 + Xcode 27.0，還是 preview）。GitHub 會隨時間替換映像裡的 Xcode patch 版，`XCODE_APP` 找不到時改成 [macos-26-arm64 readme](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md) 列的版本。
 - **費用**：私人 repo 的 GitHub 託管 macOS runner 計入付費分鐘（macOS 以 10 倍計），目前每次 run 約 1 分鐘；用量看 GitHub Settings → Billing。超出免費額度前列待裁決。
+
+## 10-23 第五輪：晶晶體（CEO：平常說中文，夾英文技術詞）
+不靠模型的規則層，Apple Intelligence 沒開也有效：(1) 內建約 130 個開發用語（`Core/DevVocabulary.swift`）＋個人字典＋更正記憶右側，對逐字稿裡的英文單字做編輯距離 1–2 的模糊修拼字，4 字母以下、複數／時態變化不動；(2) 中英之間加空格（盤古之白）；(3) 整理模型提示詞加「英文技術詞保留英文、修拼字、不翻譯」。設定頁可關。證據 `run-dev-vocabulary.txt`：realeasenotes → release notes、icone → icon、featur → feature、comit → commit、github → GitHub。
+README.md 加了（repo 已公開）。**待裁決 S-3：開源授權條款**——公開 repo 目前沒有 LICENSE 檔，要選哪一種是法律文件，CEO 決定。
 
 ## 已知限制與下一輪候選
 - 辨識綁單一語言；中英夾雜在 zh_TW 模式下英文單字可以，但整句英文會變亂碼。自動偵測要跑兩個 transcriber 或先用 `SpeechDetector`，下一輪再說。

@@ -67,7 +67,7 @@ final class Pipeline: ObservableObject {
                     self?.volatileText = v
                 }
                 let locale = settings.speechLocale, second = settings.secondaryLocale
-                let dict = settings.dictionary + CorrectionStore.shared.rightSides
+                let dict = settings.vocabularyTerms + CorrectionStore.shared.rightSides
                 let started = await withTimeout(20) { () -> Error? in
                     do { try await t.start(localeId: locale, secondaryLocaleId: second, contextualStrings: dict); return nil } catch { return error }
                 }
@@ -125,8 +125,13 @@ final class Pipeline: ObservableObject {
             let transcribeSeconds = Date().timeIntervalSince(t0)
             transcriber = nil
             Log.info("raw (\(String(format: "%.2f", transcribeSeconds))s, audio \(String(format: "%.1f", audioSeconds))s): \(rawText)")
-            let (corrected, used) = CorrectionStore.shared.apply(rawText)
+            var (corrected, used) = CorrectionStore.shared.apply(rawText)
             if !used.isEmpty { Log.info("applied corrections: " + used.map { "\($0.wrong)→\($0.right)" }.joined(separator: ", ")) }
+            if settings.devVocabulary {
+                let (repaired, fixes) = TextRules.repairAsciiWords(corrected, terms: settings.vocabularyTerms + CorrectionStore.shared.rightSides)
+                if !fixes.isEmpty { Log.info("repaired words: " + fixes.map { "\($0.0)→\($0.1)" }.joined(separator: ", ")) }
+                corrected = TextRules.spaceBetweenHanAndLatin(repaired)
+            }
             let raw = corrected
             guard !raw.isEmpty else {
                 state = .error("沒聽到內容")

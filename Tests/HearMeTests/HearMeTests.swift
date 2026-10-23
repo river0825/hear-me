@@ -198,3 +198,29 @@ final class LanguagePickTests: XCTestCase {
         XCTAssertEqual(Transcriber.chooseIndex([("zh_TW", "", 0), ("en_US", "Hello there", 0.9)]), 1)
     }
 }
+
+
+final class DevVocabularyTests: XCTestCase {
+    func testRepairsMisspelledDevWords() {
+        let (out, fixes) = TextRules.repairAsciiWords("第三寫 realeasenotes 然後 push 到 repo，順便改一下 icone", terms: DevVocabulary.terms)
+        XCTAssertEqual(out, "第三寫 release notes 然後 push 到 repo，順便改一下 icon")
+        XCTAssertEqual(fixes.map(\.0), ["realeasenotes", "icone"])
+    }
+
+    func testDictionaryTermsGetFuzzyRepairToo() {
+        let (out, _) = TextRules.repairAsciiWords("請把 Irannote 的記錄匯出到 github", terms: DevVocabulary.terms + ["IronNote"])
+        XCTAssertEqual(out, "請把 IronNote 的記錄匯出到 GitHub")
+    }
+
+    func testKeepsInflectionsAndShortWords() {
+        let (out, fixes) = TextRules.repairAsciiWords("icons 和 commits 都 ok，fix 了 bugs", terms: DevVocabulary.terms)
+        XCTAssertEqual(out, "icons 和 commits 都 ok，fix 了 bugs")
+        XCTAssertTrue(fixes.isEmpty)
+    }
+
+    func testSpacing() {
+        XCTAssertEqual(TextRules.spaceBetweenHanAndLatin("寫release notes然後push到main"), "寫 release notes 然後 push 到 main")
+        XCTAssertEqual(TextRules.spaceBetweenHanAndLatin("下午 3:00 開會。"), "下午 3:00 開會。")
+        XCTAssertEqual(TextRules.spaceBetweenHanAndLatin("已經是 GitHub 了"), "已經是 GitHub 了")
+    }
+}

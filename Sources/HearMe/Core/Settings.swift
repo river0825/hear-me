@@ -119,6 +119,8 @@ final class Settings: ObservableObject {
     @Published var defaultTone: Tone { didSet { save() } }
     @Published var outputLanguage: OutputLanguage { didSet { save() } }
     @Published var restoreClipboard: Bool { didSet { save() } }
+    /// Fuzzy-repair English words against the built-in developer vocabulary + dictionary, and add 盤古之白.
+    @Published var devVocabulary: Bool { didSet { save() } }
     @Published var dictionary: [String] { didSet { save() } }
     @Published var appTones: [AppToneRule] { didSet { save() } }
 
@@ -131,6 +133,7 @@ final class Settings: ObservableObject {
         defaultTone = Tone(rawValue: defaults.string(forKey: "defaultTone") ?? "") ?? .general
         outputLanguage = OutputLanguage(rawValue: defaults.string(forKey: "outputLanguage") ?? "") ?? .same
         restoreClipboard = defaults.object(forKey: "restoreClipboard") as? Bool ?? true
+        devVocabulary = defaults.object(forKey: "devVocabulary") as? Bool ?? true
         dictionary = defaults.stringArray(forKey: "dictionary") ?? []
         if let data = defaults.data(forKey: "appTones"), let rules = try? JSONDecoder().decode([AppToneRule].self, from: data) {
             appTones = rules
@@ -138,6 +141,9 @@ final class Settings: ObservableObject {
             appTones = Settings.defaultAppTones
         }
     }
+
+    /// Terms used for recognizer biasing and fuzzy word repair.
+    var vocabularyTerms: [String] { dictionary + (devVocabulary ? DevVocabulary.terms : []) }
 
     func tone(forBundleId bundleId: String?) -> Tone {
         ToneResolver.tone(forBundleId: bundleId, rules: appTones, fallback: defaultTone)
@@ -151,6 +157,7 @@ final class Settings: ObservableObject {
         defaults.set(defaultTone.rawValue, forKey: "defaultTone")
         defaults.set(outputLanguage.rawValue, forKey: "outputLanguage")
         defaults.set(restoreClipboard, forKey: "restoreClipboard")
+        defaults.set(devVocabulary, forKey: "devVocabulary")
         defaults.set(dictionary, forKey: "dictionary")
         defaults.set(try? JSONEncoder().encode(appTones), forKey: "appTones")
     }

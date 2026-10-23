@@ -41,6 +41,7 @@ struct SettingsView: View {
                     ForEach(OutputLanguage.allCases) { Text($0.label).tag($0) }
                 }
                 Toggle("貼上後把剪貼簿還原", isOn: $settings.restoreClipboard)
+                Toggle("晶晶體：修英文技術詞拼字（內建開發用語＋字典），中英之間加空格", isOn: $settings.devVocabulary)
                 LabeledContent("裝置端模型") { Text(Polisher.availability).foregroundStyle(.secondary) }
             }
             Section("個人字典（一行一個：人名、產品、術語）") {

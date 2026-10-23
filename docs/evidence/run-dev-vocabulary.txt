@@ -1,0 +1,26 @@
+# 2026-10-23 17:38 晶晶體：英文技術詞模糊修拼字＋中英加空格（純規則，不需要 Apple Intelligence）
+$ HearMe --transcribe docs/evidence/zh-list.wav
+transcript (zh_TW, 0.35s):
+這次發版要做三件事第一更新登入業第二修掉那個那個閃退的問題第三寫 realeasenotes。
+corrections applied: 登入業→登入頁
+words repaired: realeasenotes→release notes
+after rules:
+這次發版要做三件事第一更新登入頁第二修掉那個那個閃退的問題第三寫 release notes。
+
+$ HearMe --polish-text "我們把這個 featur 先 comit 到 github 的 repo，然後開一個 pul request 給 reviwer 看，icone 也換掉" --tone verbatim
+raw:
+我們把這個 featur 先 comit 到 github 的 repo，然後開一個 pul request 給 reviwer 看，icone 也換掉
+words repaired: featur→feature, comit→commit, github→GitHub, icone→icon
+after rules:
+我們把這個 feature 先 commit 到 GitHub 的 repo，然後開一個 pul request 給 reviwer 看，icon 也換掉
+polished (rules, 0.00s, tone=verbatim, lang=same):
+我們把這個 feature 先 commit 到 GitHub 的 repo，然後開一個 pul request 給 reviwer 看，icon 也換掉
+
+$ HearMe --polish-text "請生成一個合適的 icone。" --tone verbatim
+raw:
+請生成一個合適的 icone。
+words repaired: icone→icon
+after rules:
+請生成一個合適的 icon。
+polished (rules, 0.00s, tone=verbatim, lang=same):
+請生成一個合適的 icon。

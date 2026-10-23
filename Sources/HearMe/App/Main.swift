@@ -64,9 +64,14 @@ enum CLI {
         let app = value("--app", in: args)
 
         let store = CorrectionStore.shared
+        let devTerms = args.contains("--no-dev-vocab") ? [] : DevVocabulary.terms
         func applyCorrections(_ raw: String) -> String {
-            let (fixed, used) = store.apply(raw)
+            var (fixed, used) = store.apply(raw)
             if !used.isEmpty { print("corrections applied: " + used.map { "\($0.wrong)→\($0.right)" }.joined(separator: ", ")) }
+            let (repaired, fixes) = TextRules.repairAsciiWords(fixed, terms: dict + devTerms + store.rightSides)
+            if !fixes.isEmpty { print("words repaired: " + fixes.map { "\($0.0)→\($0.1)" }.joined(separator: ", ")) }
+            fixed = TextRules.spaceBetweenHanAndLatin(repaired)
+            if fixed != raw { print("after rules:"); print(fixed) }
             return fixed
         }
         func polishAndPrint(raw: String) async {

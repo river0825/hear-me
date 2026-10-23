@@ -46,6 +46,7 @@ enum Polisher {
         lines.append("4. 補上標點，句子要完整。")
         lines.append("5. 保持原本的段落形式，不要把一句話拆成條列。只有在說話者明確列舉三個以上項目（「第一、第二、第三」「有三件事」）時才用編號條列。")
         lines.append("6. 不要增加、刪減或回答內容，不要評論，不要加開頭問候、結尾客套或標題。")
+        lines.append("6a. 中文裡夾的英文技術詞（repo、commit、release notes、GitHub、API…）保留英文、修成標準拼法，不要翻成中文；中文和英文之間留一個空格。")
         lines.append("7. 語氣：\(r.tone.promptDescription)")
         if let lang = r.outputLanguage.promptDescription {
             lines.append("8. 輸出語言：\(lang) 整段翻譯成這個語言。")

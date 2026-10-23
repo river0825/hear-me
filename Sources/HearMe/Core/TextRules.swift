@@ -42,6 +42,76 @@ enum TextRules {
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// 盤古之白: a space between Han characters and Latin letters/digits, the way Taiwanese developers write.
+    static func spaceBetweenHanAndLatin(_ text: String) -> String {
+        var s = text
+        s = s.replacingOccurrences(of: "(?<=\\p{Han})(?=[A-Za-z0-9])", with: " ", options: .regularExpression)
+        s = s.replacingOccurrences(of: "(?<=[A-Za-z0-9])(?=\\p{Han})", with: " ", options: .regularExpression)
+        return s
+    }
+
+    static func levenshtein(_ a: [Character], _ b: [Character]) -> Int {
+        if a.isEmpty { return b.count }
+        if b.isEmpty { return a.count }
+        var prev = Array(0...b.count)
+        var cur = [Int](repeating: 0, count: b.count + 1)
+        for i in 1...a.count {
+            cur[0] = i
+            for j in 1...b.count {
+                cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1))
+            }
+            swap(&prev, &cur)
+        }
+        return prev[b.count]
+    }
+
+    /// Repair misspelled ASCII words against the user's dictionary and the built-in developer vocabulary:
+    /// "realeasenotes" → "release notes", "icone" → "icon", "Irannote" → "IronNote", "github" → "GitHub".
+    /// Conservative: words shorter than 4 letters are left alone, inflections (icons, commits) are kept,
+    /// and the allowed edit distance grows slowly with length.
+    static func repairAsciiWords(_ text: String, terms: [String]) -> (String, [(String, String)]) {
+        let canonical = terms.map { $0.trimmingCharacters(in: .whitespaces) }.filter { $0.count >= 3 && $0.allSatisfy { $0.isASCII } }
+        guard !canonical.isEmpty else { return (text, []) }
+        struct Term { let display: String; let key: [Character] }
+        let table = canonical.map { Term(display: $0, key: Array($0.lowercased().filter { $0 != " " && $0 != "-" })) }
+        var replacements: [(String, String)] = []
+        let regex = try! NSRegularExpression(pattern: "[A-Za-z][A-Za-z0-9'\\-]*")
+        let ns = text as NSString
+        var out = ""
+        var last = 0
+        for m in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+            let word = ns.substring(with: m.range)
+            out += ns.substring(with: NSRange(location: last, length: m.range.location - last))
+            last = m.range.location + m.range.length
+            let key = Array(word.lowercased())
+            var best: Term? = nil
+            var bestDist = Int.max
+            if word.count >= 4 {
+                for t in table where t.key.count >= 3 {
+                    let allowed = t.key.count <= 4 ? 1 : (t.key.count <= 7 ? 1 : 2)
+                    let d = levenshtein(key, t.key)
+                    if d <= allowed && d < bestDist { best = t; bestDist = d }
+                }
+            } else if let exact = table.first(where: { $0.key == key }) {
+                best = exact; bestDist = 0   // short word, exact letters: only fix capitalisation (iOS, API, PR)
+            }
+            var replacement = word
+            if let best {
+                let display = best.display
+                let isInflection = key != best.key && (key == best.key + ["s"] || key == best.key + ["e", "s"] || key == best.key + ["e", "d"] || key == best.key + ["i", "n", "g"])
+                if bestDist == 0 {
+                    if word != display && display.contains(where: { $0.isUppercase }) { replacement = display }
+                } else if !isInflection {
+                    replacement = display
+                }
+            }
+            if replacement != word { replacements.append((word, replacement)) }
+            out += replacement
+        }
+        out += ns.substring(from: last)
+        return (out, replacements)
+    }
+
     /// Add a space when pasting right after existing text that does not end with whitespace.
     static func joiner(previousChar: Character?, next: String) -> String {
         guard let p = previousChar, !p.isWhitespace, !p.isNewline, let n = next.first else { return "" }
