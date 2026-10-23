@@ -2,7 +2,7 @@
 
 原名〈說寫〉（shuoxie），CEO 10-23 15:5x 指示改名 Hear Me 並放上 GitHub：https://github.com/river0825/hear-me（私人）。
 
-最後更新：2026-10-23 15:55（第二輪：改名 Hear Me、修即時路徑卡死、上 GitHub；真人收音仍待 CEO 驗）
+最後更新：2026-10-23 16:16（第四輪：CEO 真實環境通過、雙語自動偵測、標點清理、自簽憑證）
 
 ## 是什麼
 CEO 10-23 直接交辦：「參考 Typeless 的功能，寫一個可以語音輸入的軟體」。
@@ -19,7 +19,7 @@ CEO 10-23 直接交辦：「參考 Typeless 的功能，寫一個可以語音輸
 | 個人字典 | ✅ 同時餵給辨識（contextual strings）與整理模型 | 辨識端對 TTS 的「IronNote」沒救回，整理端 3/3 修回 |
 | 更正記憶（Typeless 的「字典自動加入」） | ✅ 10-23 第三輪：「錯的→對的」配對存本機；逐字稿一出來先確定性替換，再告訴整理模型，右邊的詞也餵給辨識器。兩個入口：選單「更正上一次聽寫…」（圈選原文裡錯的、打正確的）、「從選取文字學習」（在原 app 改對後選起來，程式跟上一次輸出做差異比對） | CEO 10-23 16:0x 提議；證據 `run-corrections.txt` |
 | 每個 app 不同語氣 | ✅ bundle id → 一般／正式／口語／照打；預設郵件正式、通訊軟體口語、終端機與編輯器照打 | 設定頁可改，支援前綴規則 |
-| 100+ 語言、自動偵測 | ⚠️ 單一辨識語言（zh_TW／zh_CN／zh_HK／en_US／en_GB／ja_JP 可選），不自動偵測 | Apple 辨識模型綁語言；中文模式下英文單字可混說 |
+| 100+ 語言、自動偵測 | ✅ 兩種語言自動偵測（10-23 第四輪）：主語言＋第二語言兩個模型同時聽同一段聲音，放開後用「信心 × 文字系統比對」挑一個；整理模型也跟著用該語言的規則。預設 zh_TW＋en_US | 不是 100 種；只有兩種。中文模型對整句英文也會給高信心，所以要靠文字系統比對。證據 `run-dual-language.txt` |
 | 翻譯 | ✅ 輸出語言：英文／日文／台灣正體中文 | 日文把「首頁」直譯了；en→zh 用了「崩潰」「發送」等非台灣用語 |
 | 選取文字下語音指令（改短、換語氣、翻譯、摘要、提問） | ✅ 按住 ⇧＋快捷鍵；先 ⌘C 抓選取文字，說完指令後貼回 | 檔案路徑驗過「翻成英文、正式一點」與「縮短成一句」 |
 | 個人化風格學習 | ❌ 沒做 | 需要累積記錄再做 |
@@ -66,7 +66,7 @@ HEARME_DEMO=1 build/HearMe.app/Contents/MacOS/HearMe   # 啟動 1 秒後自動�
 | app 啟動 | `build/HearMe.app` 以 `HEARME_DEMO=1` 啟動，跑 5 秒沒 crash，log 只有「Accessibility not granted yet」 | `docs/evidence/app-launch.log` |
 | HUD 與設定頁外觀 | `screencapture` 被擋（終端機沒有螢幕錄製權限），改用 `--render-ui` 離屏畫出 5 個 HUD 狀態與設定頁 | `docs/evidence/ui/*.png` |
 | 即時路徑（麥克風串流的那條程式路徑） | `--simulate-live` 把音檔切成麥克風大小的塊餵進即時辨識：三段都 44 筆左右的即時更新、最後一筆 final、收尾 0.06 秒 | `run-simulate-live.txt` |
-| **真人收音、快捷鍵、貼進別的 app** | **未驗。** 這台機器沒有麥克風、終端機沒有輔助使用權限 | 要 CEO 在有麥克風的 Mac 上做下面的驗收 |
+| **真人收音、快捷鍵／選單啟動、貼進別的 app** | ✅ **CEO 的 Mac 10-23 16:04–16:06 通過**：內建麥克風 48 kHz → 16 kHz，五段真實語音即時辨識、收尾 0.03–0.17 秒、貼上。第一次因麥克風權限 2.5 秒才起來、0 buffer，之後都正常 | `docs/evidence/ceo-mac-log-2026-10-23.txt`（CEO 貼來的 log） |
 
 ## 10-23 第二輪：CEO 那台卡在「聽寫中」關不掉
 CEO 的 Mac（macOS 26.6.2、Apple Silicon、Apple Intelligence 未開）用選單「開始聽寫」後一直聽寫中、關不掉。在這台機器用 `--simulate-live` 重現並修了三件事：
@@ -75,6 +75,11 @@ CEO 的 Mac（macOS 26.6.2、Apple Silicon、Apple Intelligence 未開）用選�
 3. 我寫的逾時包裝用 task group，group 會等子任務結束才返回，逾時形同沒有。改成 continuation 競速。
 另外加了：啟動 20 秒逾時、收尾 8 秒逾時、選單「取消（強制回到待命）」、log 寫到 `~/Library/Logs/HearMe.log`（選單「顯示 log 檔」）。
 **CEO 那台的根因還沒確認**（沒有 log），新版若再卡住，請把 log 檔貼過來。
+
+## 10-23 第四輪：從 CEO 的 log 修的三件事
+1. **Apple Intelligence 沒開**（`appleIntelligenceNotEnabled`）：整理模型跟 Apple Intelligence 共用裝置端模型，系統沒開就不可用。沒開時輸出＝規則清理；規則清理加了「去掉中文標點前後的空格」（辨識器會寫成「功能 ，看」）。
+2. **中文模式說整句英文變亂碼**：做了兩種語言自動偵測（見對照表）。
+3. **每次重打包要重勾輔助使用**：ad-hoc 簽名的指定需求含 cdhash，每次都變。改用自簽的「HearMe Dev」程式碼簽章身分（openssl 產、放在獨立的 `~/Library/Keychains/hearme-dev.keychain-db`，無密碼；公鑰憑證在 `Resources/HearMeDev.cer.pem`），指定需求變成「identifier + 憑證指紋」，重打包不變。`scripts/bundle.sh` 偵測到那個 keychain 就用它簽，沒有就退回 ad-hoc。**還沒在 CEO 那台驗證 TCC 真的接受未信任的自簽憑證**；下一次重打包後 log 若 `ax=true`，就是過了。這把身分只保護「權限不用重勾」，遺失就重做一把、重勾一次權限。
 
 ## 要 CEO 驗（有麥克風的 Mac，macOS 26+，Apple Intelligence 開啟）
 1. `./scripts/bundle.sh && open build/HearMe.app`，允許「輔助使用」（系統會跳出）與「麥克風」（第一次聽寫時跳出）。
@@ -98,7 +103,7 @@ CEO 的 Mac（macOS 26.6.2、Apple Silicon、Apple Intelligence 未開）用選�
 - 日文翻譯會把中文專有名詞直譯（「首頁」）；可以在翻譯模式也餵字典對照。
 
 ## 待裁決
-- **S-1. 要不要簽開發憑證？** 沒有的話每次重打包後 CEO 都要重勾輔助使用。需要 Apple ID 登入 Xcode（CEO 執行）。
+- **S-1. 要不要簽開發憑證？** 10-23 第四輪改用自簽身分先解（見上）；若 CEO 那台重打包後仍要重勾，再回來談 Apple Development 憑證。
 - **S-2. 這個 POC 要不要進點子漏斗走產品長審？** 目前是 CEO 直接交辦，沒有提案書；市場上 Typeless、Wispr Flow、superwhisper 已經很擠，差異化只有「完全不連外、免費」。
 
 ## 檔案

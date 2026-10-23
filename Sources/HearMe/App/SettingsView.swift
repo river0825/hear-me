@@ -25,7 +25,11 @@ struct SettingsView: View {
                 Picker("辨識語言", selection: $settings.speechLocale) {
                     ForEach(SpeechLocaleOption.all) { Text($0.label).tag($0.id) }
                 }
-                Text("辨識與整理都在這台電腦上完成，不會上傳。第一次用某個語言會先下載模型。")
+                Picker("第二語言（自動偵測）", selection: $settings.secondaryLocale) {
+                    Text("關閉").tag("")
+                    ForEach(SpeechLocaleOption.all.filter { $0.id != settings.speechLocale }) { Text($0.label).tag($0.id) }
+                }
+                Text("辨識與整理都在這台電腦上完成，不會上傳。第一次用某個語言會先下載模型。\n開第二語言時兩個模型同時聽同一段聲音，放開後用信心分數挑一個，整句英文就不會被中文模型打成亂碼；多用一點 CPU。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("整理") {

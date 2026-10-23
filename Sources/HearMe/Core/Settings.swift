@@ -113,6 +113,8 @@ final class Settings: ObservableObject {
 
     @Published var hotkey: HotkeyChoice { didSet { save() } }
     @Published var speechLocale: String { didSet { save() } }
+    /// Second language transcribed in parallel; "" = off.
+    @Published var secondaryLocale: String { didSet { save() } }
     @Published var polishEnabled: Bool { didSet { save() } }
     @Published var defaultTone: Tone { didSet { save() } }
     @Published var outputLanguage: OutputLanguage { didSet { save() } }
@@ -124,6 +126,7 @@ final class Settings: ObservableObject {
         self.defaults = defaults
         hotkey = HotkeyChoice(rawValue: defaults.string(forKey: "hotkey") ?? "") ?? .fn
         speechLocale = defaults.string(forKey: "speechLocale") ?? "zh_TW"
+        secondaryLocale = defaults.string(forKey: "secondaryLocale") ?? "en_US"
         polishEnabled = defaults.object(forKey: "polishEnabled") as? Bool ?? true
         defaultTone = Tone(rawValue: defaults.string(forKey: "defaultTone") ?? "") ?? .general
         outputLanguage = OutputLanguage(rawValue: defaults.string(forKey: "outputLanguage") ?? "") ?? .same
@@ -143,6 +146,7 @@ final class Settings: ObservableObject {
     private func save() {
         defaults.set(hotkey.rawValue, forKey: "hotkey")
         defaults.set(speechLocale, forKey: "speechLocale")
+        defaults.set(secondaryLocale, forKey: "secondaryLocale")
         defaults.set(polishEnabled, forKey: "polishEnabled")
         defaults.set(defaultTone.rawValue, forKey: "defaultTone")
         defaults.set(outputLanguage.rawValue, forKey: "outputLanguage")

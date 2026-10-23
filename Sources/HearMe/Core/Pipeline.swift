@@ -66,10 +66,10 @@ final class Pipeline: ObservableObject {
                     self?.finalText = f
                     self?.volatileText = v
                 }
-                let locale = settings.speechLocale
+                let locale = settings.speechLocale, second = settings.secondaryLocale
                 let dict = settings.dictionary + CorrectionStore.shared.rightSides
                 let started = await withTimeout(20) { () -> Error? in
-                    do { try await t.start(localeId: locale, contextualStrings: dict); return nil } catch { return error }
+                    do { try await t.start(localeId: locale, secondaryLocaleId: second, contextualStrings: dict); return nil } catch { return error }
                 }
                 guard let started else { throw NSError(domain: "HearMe", code: 10, userInfo: [NSLocalizedDescriptionKey: "語音辨識啟動逾時（20 秒）。語言模型可能還在下載，稍後再試。"]) }
                 if let error = started { throw error }
@@ -110,10 +110,12 @@ final class Pipeline: ObservableObject {
             capture.stop()
             let t0 = Date()
             var rawText = ""
+            var spokenLocale = settings.speechLocale
             if let t = transcriber {
                 let finished = await withTimeout(8) { await t.finish() }
                 if let finished {
-                    rawText = finished
+                    rawText = finished.text
+                    spokenLocale = finished.localeId.isEmpty ? spokenLocale : finished.localeId
                 } else {
                     Log.warn("finish timed out; using partial text")
                     rawText = t.currentText
@@ -137,7 +139,7 @@ final class Pipeline: ObservableObject {
             var output: String
             if mode == .command, let selected = selectedText {
                 do {
-                    output = try await Polisher.applyCommand(selected: selected, instruction: raw, speechLocale: settings.speechLocale)
+                    output = try await Polisher.applyCommand(selected: selected, instruction: raw, speechLocale: spokenLocale)
                 } catch {
                     await fail("指令失敗：\(error.localizedDescription)")
                     return
@@ -146,7 +148,7 @@ final class Pipeline: ObservableObject {
                 (output, _) = await Polisher.polish(PolishRequest(
                     raw: raw, tone: tone, outputLanguage: settings.outputLanguage,
                     dictionary: settings.dictionary, appName: targetApp?.localizedName,
-                    speechLocale: settings.speechLocale, corrections: CorrectionStore.shared.items
+                    speechLocale: spokenLocale, corrections: CorrectionStore.shared.items
                 ))
             } else {
                 output = TextRules.basicCleanup(raw)

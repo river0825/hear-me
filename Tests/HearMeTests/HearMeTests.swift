@@ -41,6 +41,12 @@ final class TextRulesTests: XCTestCase {
         XCTAssertEqual(TextRules.basicCleanup("好，嗯，就這樣"), "好，就這樣")
     }
 
+    func testSpaceBeforeFullWidthPunctuationRemoved() {
+        XCTAssertEqual(TextRules.basicCleanup("個人字典的狀況會是怎麼樣 ？我看一下。"), "個人字典的狀況會是怎麼樣？我看一下。")
+        XCTAssertEqual(TextRules.basicCleanup("測試一下新的功能 ，看可不可以使用。"), "測試一下新的功能，看可不可以使用。")
+        XCTAssertEqual(TextRules.basicCleanup("ship it, then fix the crash"), "ship it, then fix the crash")
+    }
+
     func testChineseFillerInsideWordIsKept() {
         // 「嗯」 inside a real word must survive.
         XCTAssertEqual(TextRules.basicCleanup("這個字念嗯嗯"), "這個字念嗯嗯")
@@ -154,5 +160,23 @@ final class CorrectionTests: XCTestCase {
         let reloaded = CorrectionStore(url: url)
         XCTAssertEqual(reloaded.items.map(\.wrong), ["繪出"])
         try? FileManager.default.removeItem(at: url)
+    }
+}
+
+
+final class LanguagePickTests: XCTestCase {
+    func testScriptMatch() {
+        XCTAssertEqual(Transcriber.scriptMatch("這次發版要做三件事", localeId: "zh_TW"), 1.0, accuracy: 0.01)
+        XCTAssertEqual(Transcriber.scriptMatch("I think we should ship it", localeId: "zh_TW"), 0.0, accuracy: 0.01)
+        XCTAssertEqual(Transcriber.scriptMatch("I think we should ship it", localeId: "en_US"), 1.0, accuracy: 0.01)
+        XCTAssertGreaterThanOrEqual(Transcriber.scriptMatch("第三寫 release notes", localeId: "zh_TW"), 0.2)
+        XCTAssertEqual(Transcriber.scriptMatch("3:00, 4:00", localeId: "zh_TW"), 0.0)
+    }
+
+    func testEnglishSpeechUnderChinesePrimaryPicksEnglish() {
+        XCTAssertLessThan(Transcriber.score(text: "I'm so I think we should ship the logan page", localeId: "zh_TW", confidence: 0.87),
+                          Transcriber.score(text: "So I think we should ship the login page", localeId: "en_US", confidence: 0.84))
+        XCTAssertGreaterThan(Transcriber.score(text: "請幫我把 Irannote 的訓練記錄匯出", localeId: "zh_TW", confidence: 0.92),
+                             Transcriber.score(text: "Qing bang wo by Iran node", localeId: "en_US", confidence: 0.25))
     }
 }

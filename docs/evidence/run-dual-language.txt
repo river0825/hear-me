@@ -1,0 +1,36 @@
+# 2026-10-23 16:15 雙語自動偵測：信心 × 文字系統比對（中文模型的輸出沒有漢字就打折）
+$ HearMe --transcribe docs/evidence/en-filler.wav --locale zh_TW --locale2 en_US
+  [zh_TW] confidence 0.87: I'm so I think we should ah ship the logan page first and then You know fixs the crash.
+  [en_US] confidence 0.86: Um, so I think we should. Ah, ship the login page 1st and then, you know, fix the crash.
+transcript (en_US, 0.40s):
+Um, so I think we should. Ah, ship the login page 1st and then, you know, fix the crash.
+
+$ HearMe --transcribe docs/evidence/zh-list.wav --locale zh_TW --locale2 en_US
+  [zh_TW] confidence 0.86: 這次發版要做三件事第一更新登入業第二修掉那個那個閃退的問題第三寫 realeasenotes。
+  [en_US] confidence 0.04: , , , , , , , ,, ,, ,, ,, ,, ,, ,.
+transcript (zh_TW, 0.35s):
+這次發版要做三件事第一更新登入業第二修掉那個那個閃退的問題第三寫 realeasenotes。
+corrections applied: 登入業→登入頁
+
+$ HearMe --transcribe docs/evidence/zh-correction.wav --locale zh_TW --locale2 en_US
+  [zh_TW] confidence 0.95: 問我明天餓明天下午 3:00不對 4:00要跟客戶開會 ，你幫我記一下。
+  [en_US] confidence 0.00: 
+transcript (zh_TW, 0.28s):
+問我明天餓明天下午 3:00不對 4:00要跟客戶開會 ，你幫我記一下。
+
+$ HearMe --transcribe docs/evidence/zh-dict.wav --locale zh_TW --locale2 en_US
+  [zh_TW] confidence 0.92: 請幫我把 Irannote的訓練記錄繪出 ，然後傳到拆招的測試伺服器。
+  [en_US] confidence 0.27: Qing bang wo by Iran node, that Xin Lian Qi Lu Hui Chu, Jiang Ho, Chan, dao, Chai, Zi, Fu Chi.
+transcript (zh_TW, 0.30s):
+請幫我把 Irannote的訓練記錄繪出 ，然後傳到拆招的測試伺服器。
+corrections applied: Irannote→IronNote, 記錄繪→記錄匯
+
+$ HearMe --simulate-live docs/evidence/en-filler.wav --locale zh_TW --locale2 en_US --polish
+live transcriber started in 0.05s
+fed 25 chunks, 61 live updates, finish took 0.07s
+  [zh_TW] confidence 0.83: I'm so I think we should ah ship the logan page first and then You know fixs the crash
+  [en_US] confidence 0.84: So I think we should. Ah, ship the login page 1st and then, you know, fix the crash.
+transcript (en_US):
+So I think we should. Ah, ship the login page 1st and then, you know, fix the crash.
+polished (on-device model, 1.12s, tone=general, lang=same):
+I think we should ship the login page first and then fix the crash.

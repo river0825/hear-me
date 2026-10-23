@@ -18,6 +18,9 @@ enum TextRules {
             s = s.replacingOccurrences(of: "[，,、]" + f + "+(?=[，,。、\\s]|$)", with: "", options: .regularExpression)
         }
         s = s.replacingOccurrences(of: "[ \\t]{2,}", with: " ", options: .regularExpression)
+        // The recognizer writes "功能 ，看" — no space belongs before or after full-width punctuation.
+        s = s.replacingOccurrences(of: "\\s+(?=[，。、？！：；」』）])", with: "", options: .regularExpression)
+        s = s.replacingOccurrences(of: "(?<=[，。、？！：；「『（])\\s+", with: "", options: .regularExpression)
         s = s.replacingOccurrences(of: "^[，,。、\\s]+", with: "", options: .regularExpression)
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }

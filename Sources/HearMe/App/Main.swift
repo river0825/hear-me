@@ -36,7 +36,7 @@ enum CLI {
     static func usage() -> String {
         """
         HearMe  (no args)                                 啟動選單列 app
-        HearMe --transcribe <audio> [--locale zh_TW] [--dict 詞,詞] [--polish] [--tone general|formal|casual|verbatim] [--lang same|english|japanese|traditionalChinese] [--app 名稱]
+        HearMe --transcribe <audio> [--locale zh_TW] [--locale2 en_US] [--dict 詞,詞] [--polish] [--tone general|formal|casual|verbatim] [--lang same|english|japanese|traditionalChinese] [--app 名稱]
         HearMe --polish-text "<逐字稿>" [--tone …] [--lang …] [--dict …] [--app …]
         HearMe --command "<選取文字>" --say "<指令>"
         HearMe --simulate-live <audio> [--polish] [--verbose]   把音檔當麥克風串流走即時路徑
@@ -56,7 +56,8 @@ enum CLI {
     static func run(_ args: [String]) -> Int32 {
         setlinebuf(stdout)
         Log.verbose = args.contains("--verbose")
-        let locale = value("--locale", in: args) ?? "zh_TW"
+        var locale = value("--locale", in: args) ?? "zh_TW"
+        let locale2 = value("--locale2", in: args)
         let dict = (value("--dict", in: args) ?? "").split(separator: ",").map(String.init)
         let tone = Tone(rawValue: value("--tone", in: args) ?? "") ?? .general
         let lang = OutputLanguage(rawValue: value("--lang", in: args) ?? "") ?? .same
@@ -104,7 +105,12 @@ enum CLI {
                     print("log:", Log.fileURL.path)
                 } else if let path = value("--transcribe", in: args) {
                     let t = Date()
-                    var raw = try await Transcriber.transcribeFile(URL(fileURLWithPath: path), localeId: locale, contextualStrings: dict + store.rightSides)
+                    let outcome = try await Transcriber.transcribeFile(URL(fileURLWithPath: path), localeId: locale, secondaryLocaleId: locale2, contextualStrings: dict + store.rightSides)
+                    var raw = outcome.text
+                    if outcome.alternatives.count > 1 {
+                        for a in outcome.alternatives { print("  [\(a.localeId)] confidence \(String(format: "%.2f", a.confidence)): \(a.text)") }
+                    }
+                    locale = outcome.localeId
                     print("transcript (\(locale), \(String(format: "%.2f", Date().timeIntervalSince(t)))s):")
                     print(raw)
                     raw = applyCorrections(raw)
@@ -116,7 +122,7 @@ enum CLI {
                     var updates = 0
                     t.onUpdate = { f, v in updates += 1; if Log.verbose { print("  update #\(updates): [\(f)] + [\(v)]") } }
                     let t0 = Date()
-                    try await t.start(localeId: locale, contextualStrings: dict)
+                    try await t.start(localeId: locale, secondaryLocaleId: locale2, contextualStrings: dict)
                     print("live transcriber started in \(String(format: "%.2f", Date().timeIntervalSince(t0)))s")
                     let chunk: AVAudioFrameCount = 4096
                     var fed = 0
@@ -130,11 +136,15 @@ enum CLI {
                         try? await Task.sleep(nanoseconds: UInt64(Double(buf.frameLength) / file.processingFormat.sampleRate * 0.5 * 1e9))
                     }
                     let t1 = Date()
-                    let raw = await withTimeout(8) { await t.finish() }
-                    print("fed \(fed) chunks, \(updates) live updates, finish took \(String(format: "%.2f", Date().timeIntervalSince(t1)))s\(raw == nil ? " (TIMEOUT)" : "")")
-                    print("transcript:")
-                    print(raw ?? t.currentText)
-                    let fixed = applyCorrections(raw ?? t.currentText)
+                    let outcome = await withTimeout(8) { await t.finish() }
+                    print("fed \(fed) chunks, \(updates) live updates, finish took \(String(format: "%.2f", Date().timeIntervalSince(t1)))s\(outcome == nil ? " (TIMEOUT)" : "")")
+                    if let o = outcome, o.alternatives.count > 1 {
+                        for a in o.alternatives { print("  [\(a.localeId)] confidence \(String(format: "%.2f", a.confidence)): \(a.text)") }
+                        locale = o.localeId
+                    }
+                    print("transcript (\(locale)):")
+                    print(outcome?.text ?? t.currentText)
+                    let fixed = applyCorrections(outcome?.text ?? t.currentText)
                     if args.contains("--polish") { await polishAndPrint(raw: fixed) }
                 } else if let raw = value("--polish-text", in: args) {
                     print("raw:")

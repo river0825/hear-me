@@ -15,26 +15,48 @@ enum TranscribeError: LocalizedError {
 }
 
 /// On-device speech-to-text built on macOS 26's SpeechAnalyzer / SpeechTranscriber.
-/// Nothing leaves the machine.
+/// Nothing leaves the machine. Optionally runs a second language model on the same audio and
+/// picks the transcript with the higher confidence ("auto-detect" between two languages).
 final class Transcriber {
+    /// One language module and what it has produced so far.
+    final class Track {
+        let localeId: String
+        let module: SpeechTranscriber
+        var finalText = ""
+        var volatileText = ""
+        var confidenceSum = 0.0
+        var confidenceWeight = 0.0
+        var task: Task<Void, Never>?
+        init(localeId: String, module: SpeechTranscriber) { self.localeId = localeId; self.module = module }
+        var text: String { (finalText + volatileText).trimmingCharacters(in: .whitespacesAndNewlines) }
+        var meanConfidence: Double { confidenceWeight > 0 ? confidenceSum / confidenceWeight : 0 }
+    }
+
+    struct Outcome { let text: String; let localeId: String; let alternatives: [(localeId: String, text: String, confidence: Double)] }
+
     private var analyzer: SpeechAnalyzer?
-    private var transcriber: SpeechTranscriber?
+    private var tracks: [Track] = []
     private var converter: BufferConverter?
     private var continuation: AsyncStream<AnalyzerInput>.Continuation?
-    private var resultsTask: Task<Void, Never>?
-
-    private(set) var finalText = ""
-    private(set) var volatileText = ""
     private(set) var fedBuffers = 0
-    /// (finalized so far, current volatile tail)
+    /// (finalized so far, current volatile tail) of the primary language, for the live HUD.
     var onUpdate: ((String, String) -> Void)?
+
+    var finalText: String { tracks.first?.finalText ?? "" }
+    var volatileText: String { tracks.first?.volatileText ?? "" }
+    var currentText: String { tracks.first?.text ?? "" }
 
     static func makeModule(localeId: String, progressive: Bool) async throws -> SpeechTranscriber {
         let wanted = Locale(identifier: localeId)
         guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: wanted) else {
             throw TranscribeError.localeUnsupported(localeId)
         }
-        let module = SpeechTranscriber(locale: locale, preset: progressive ? .progressiveTranscription : .transcription)
+        let module = SpeechTranscriber(
+            locale: locale,
+            transcriptionOptions: [],
+            reportingOptions: progressive ? [.volatileResults, .fastResults] : [],
+            attributeOptions: [.transcriptionConfidence]
+        )
         try await ensureAssets(for: module, localeId: localeId)
         return module
     }
@@ -57,48 +79,67 @@ final class Transcriber {
         return ctx
     }
 
+    static func confidence(of text: AttributedString) -> (sum: Double, weight: Double) {
+        var sum = 0.0, weight = 0.0
+        for run in text.runs {
+            let n = Double(text[run.range].characters.count)
+            if let c = run.transcriptionConfidence { sum += c * n; weight += n }
+        }
+        return (sum, weight)
+    }
+
     // MARK: live
 
-    func start(localeId: String, contextualStrings: [String]) async throws {
-        finalText = ""
-        volatileText = ""
-        let module = try await Self.makeModule(localeId: localeId, progressive: true)
+    func start(localeId: String, secondaryLocaleId: String? = nil, contextualStrings: [String], progressive: Bool = true) async throws {
+        var modules: [Track] = [Track(localeId: localeId, module: try await Self.makeModule(localeId: localeId, progressive: progressive))]
+        if let second = secondaryLocaleId, !second.isEmpty, second != localeId {
+            do {
+                modules.append(Track(localeId: second, module: try await Self.makeModule(localeId: second, progressive: progressive)))
+            } catch {
+                Log.warn("secondary language \(second) unavailable: \(error)")
+            }
+        }
         let analyzer = SpeechAnalyzer(
-            modules: [module],
+            modules: modules.map(\.module),
             options: SpeechAnalyzer.Options(priority: .userInitiated, modelRetention: .processLifetime)
         )
         try await analyzer.setContext(Self.makeContext(contextualStrings: contextualStrings))
-        guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [module]) else {
+        guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: modules.map(\.module)) else {
             throw TranscribeError.noAudioFormat
         }
         converter = BufferConverter(targetFormat: format)
         let (stream, cont) = AsyncStream<AnalyzerInput>.makeStream()
         continuation = cont
-        resultsTask = Task { [weak self] in
-            do {
-                for try await result in module.results {
-                    guard let self else { return }
-                    let text = String(result.text.characters)
-                    Log.info("result final=\(result.isFinal) range=\(result.range.start.seconds)-\(result.range.end.seconds) text=\(text)")
-                    if result.isFinal {
-                        self.finalText += text
-                        self.volatileText = ""
-                    } else {
-                        self.volatileText = text
+        for (index, track) in modules.enumerated() {
+            track.task = Task { [weak self] in
+                do {
+                    for try await result in track.module.results {
+                        let text = String(result.text.characters)
+                        if result.isFinal {
+                            track.finalText += text
+                            track.volatileText = ""
+                            let c = Self.confidence(of: result.text)
+                            track.confidenceSum += c.sum; track.confidenceWeight += c.weight
+                        } else {
+                            track.volatileText = text
+                        }
+                        Log.info("[\(track.localeId)] final=\(result.isFinal) range=\(result.range.start.seconds)-\(result.range.end.seconds) text=\(text)")
+                        if index == 0, let self {
+                            let f = track.finalText, v = track.volatileText
+                            DispatchQueue.main.async { self.onUpdate?(f, v) }
+                        }
                     }
-                    let f = self.finalText, v = self.volatileText
-                    // Never block the results loop on the main actor.
-                    DispatchQueue.main.async { self.onUpdate?(f, v) }
+                    Log.info("[\(track.localeId)] results stream ended normally")
+                } catch {
+                    Log.warn("[\(track.localeId)] results stream ended: \(error)")
                 }
-                Log.info("results stream ended normally")
-            } catch {
-                Log.warn("results stream ended: \(error)")
             }
         }
         try await analyzer.start(inputSequence: stream)
         self.analyzer = analyzer
-        self.transcriber = module
-        Log.info("transcriber started (\(localeId), analyzer format \(format.sampleRate) Hz)")
+        self.tracks = modules
+        fedBuffers = 0
+        Log.info("transcriber started (\(modules.map(\.localeId).joined(separator: "+")), analyzer format \(format.sampleRate) Hz)")
     }
 
     func feed(_ buffer: AVAudioPCMBuffer, at time: AVAudioTime?) {
@@ -114,10 +155,8 @@ final class Transcriber {
         }
     }
 
-    var currentText: String { (finalText + volatileText).trimmingCharacters(in: .whitespacesAndNewlines) }
-
-    /// Flush, wait for the last results and return the whole transcript.
-    func finish() async -> String {
+    /// Flush, wait briefly for the last results, pick the best language and return everything.
+    func finish() async -> Outcome {
         Log.info("transcriber finish: fed \(fedBuffers) buffers, text so far \(currentText.count) chars")
         continuation?.finish()
         do {
@@ -127,53 +166,75 @@ final class Transcriber {
             Log.warn("finalize failed: \(error)")
             await analyzer?.cancelAndFinishNow()
         }
-        // The results stream does not reliably end after the analyzer finishes (observed on macOS 27),
-        // so give it a short grace period for the last final result, then move on with what we have.
-        let ended = await withTimeout(1.5) { [resultsTask] in await resultsTask?.value }
+        // The results streams do not reliably end after the analyzer finishes (observed on macOS 27),
+        // so give them a short grace period for the last final result, then move on with what we have.
+        let tasks = tracks.map(\.task)
+        let ended = await withTimeout(1.5) { for t in tasks { await t?.value } }
         if ended == nil {
             Log.info("results stream still open after finish; using accumulated text")
-            resultsTask?.cancel()
+            tasks.forEach { $0?.cancel() }
         }
-        let text = finalText + volatileText
-        analyzer = nil
-        transcriber = nil
-        converter = nil
-        continuation = nil
-        resultsTask = nil
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let outcome = Self.choose(tracks)
+        analyzer = nil; tracks = []; converter = nil; continuation = nil
+        return outcome
+    }
+
+    /// Fraction of letters in `text` that belong to the script this locale is expected to produce.
+    /// A zh model transcribing English speech outputs Latin letters with high confidence, so confidence
+    /// alone cannot tell the languages apart; the script can.
+    static func scriptMatch(_ text: String, localeId: String) -> Double {
+        let letters = text.unicodeScalars.filter { CharacterSet.letters.contains($0) }
+        guard !letters.isEmpty else { return 0 }
+        let cjk = localeId.hasPrefix("zh") || localeId.hasPrefix("ja") || localeId.hasPrefix("ko")
+        let matching = letters.filter { u in
+            let v = u.value
+            let isHan = (0x4E00...0x9FFF).contains(v) || (0x3400...0x4DBF).contains(v) || (0x3040...0x30FF).contains(v) || (0xAC00...0xD7AF).contains(v)
+            return cjk ? isHan : !isHan
+        }
+        return Double(matching.count) / Double(letters.count)
+    }
+
+    static func score(text: String, localeId: String, confidence: Double) -> Double {
+        confidence * scriptMatch(text, localeId: localeId)
+    }
+
+    static func choose(_ tracks: [Track]) -> Outcome {
+        let alts = tracks.map { (localeId: $0.localeId, text: $0.text, confidence: $0.meanConfidence) }
+        guard let primary = tracks.first else { return Outcome(text: "", localeId: "", alternatives: []) }
+        var best = primary
+        var bestScore = score(text: primary.text, localeId: primary.localeId, confidence: primary.meanConfidence)
+        for t in tracks.dropFirst() where !t.text.isEmpty {
+            let sc = score(text: t.text, localeId: t.localeId, confidence: t.meanConfidence)
+            // Ties go to the primary language.
+            if sc > bestScore + 0.05 || best.text.isEmpty { best = t; bestScore = sc }
+        }
+        if tracks.count > 1 {
+            Log.info("language pick: " + tracks.map { "\($0.localeId) conf=\(String(format: "%.2f", $0.meanConfidence)) script=\(String(format: "%.2f", scriptMatch($0.text, localeId: $0.localeId))) \"\($0.text.prefix(40))\"" }.joined(separator: " | ") + " → \(best.localeId)")
+        }
+        return Outcome(text: best.text, localeId: best.localeId, alternatives: alts)
     }
 
     func cancel() async {
         continuation?.finish()
         await analyzer?.cancelAndFinishNow()
-        resultsTask?.cancel()
-        analyzer = nil
-        transcriber = nil
-        converter = nil
-        continuation = nil
-        resultsTask = nil
+        tracks.forEach { $0.task?.cancel() }
+        analyzer = nil; tracks = []; converter = nil; continuation = nil
     }
 
-    // MARK: file (used by the CLI test mode)
+    // MARK: file (CLI test mode): same code path as the microphone, fed from a file.
 
-    static func transcribeFile(_ url: URL, localeId: String, contextualStrings: [String]) async throws -> String {
+    static func transcribeFile(_ url: URL, localeId: String, secondaryLocaleId: String? = nil, contextualStrings: [String]) async throws -> Outcome {
         let file = try AVAudioFile(forReading: url)
-        let module = try await makeModule(localeId: localeId, progressive: false)
-        let analyzer = SpeechAnalyzer(modules: [module])
-        try await analyzer.setContext(makeContext(contextualStrings: contextualStrings))
-        let collector = Task<String, Error> {
-            var text = ""
-            for try await result in module.results where result.isFinal {
-                text += String(result.text.characters)
-            }
-            return text
+        let t = Transcriber()
+        try await t.start(localeId: localeId, secondaryLocaleId: secondaryLocaleId, contextualStrings: contextualStrings, progressive: false)
+        let chunk: AVAudioFrameCount = 4096
+        while file.framePosition < file.length {
+            guard let buf = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: chunk) else { break }
+            try file.read(into: buf, frameCount: chunk)
+            if buf.frameLength == 0 { break }
+            t.feed(buf, at: nil)
         }
-        if let last = try await analyzer.analyzeSequence(from: file) {
-            try await analyzer.finalizeAndFinish(through: last)
-        } else {
-            await analyzer.cancelAndFinishNow()
-        }
-        return try await collector.value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return await t.finish()
     }
 }
 

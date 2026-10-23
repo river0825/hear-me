@@ -1,0 +1,17 @@
+# CEO 的 Mac（macOS 26.6.2、Apple Silicon、內建麥克風 48 kHz、Apple Intelligence 未開）~/Library/Logs/HearMe.log 節錄，10-23 16:03–16:07
+# 真實收音、快捷鍵／選單啟動、即時辨識、收尾、貼上全部通。五段真實語音：
+2026-10-23 16:03:51.477 launched 0.1.0 on 版本26.6.2（版號25G83）; ax=true mic=尚未詢問 model=不可用：appleIntelligenceNotEnabled
+2026-10-23 16:03:55.995 start mode=dictate app=com.cmuxterm.app
+2026-10-23 16:03:57.562 stop                                   ← 第一次：麥克風權限／引擎 2.5 秒才起來，0 buffer，「沒聽到內容」
+2026-10-23 16:03:58.507 capture started: 48000.0 Hz ch=1
+2026-10-23 16:04:00.126 raw (1.60s, audio 0.0s):
+2026-10-23 16:04:00.841 start mode=dictate app=com.cmuxterm.app
+2026-10-23 16:04:01.013 first audio buffer: 48000.0 Hz ch=1 → 16000.0 Hz
+2026-10-23 16:04:08.831 result final=true range=0.0-7.14 text=測試一下新的功能 ，看可不可以使用。
+2026-10-23 16:05:17.943 raw (0.17s, audio 3.5s): 個人字典的狀況會是怎麼樣 ？我看一下。
+2026-10-23 16:05:17.944 output (0.00s, tone general): 個人字典的狀況會是怎麼樣 ？我看一下。   ← 沒開 Apple Intelligence，輸出＝規則清理後的原文
+2026-10-23 16:05:30.888 raw (0.05s, audio 2.4s): 個人字典的狀況 ，我試試看。
+2026-10-23 16:06:07.148 raw (0.04s, audio 5.1s): 最東盟成申一下比較適合的 icon。          ← 句首「幫我生成」整段錯
+2026-10-23 16:06:20.497 raw (0.03s, audio 6.6s): Pregenarate a new I can't for this app   ← zh_TW 模式說英文整句亂
+2026-10-23 16:06:31.793 raw (0.03s, audio 5.4s): 請生成一個合適的 icone。
+2026-10-23 16:07:17.568 launched 0.1.0 ...; ax=false    ← 重打包後輔助使用要重勾（ad-hoc 簽名）
