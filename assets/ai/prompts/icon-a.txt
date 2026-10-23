@@ -1,0 +1,5 @@
+Use the image_generation tool to create ONE image, then save it as out/icon-a.png in the current directory. Reply with the saved path only.
+
+Image: a macOS app icon for "Hear Me", a voice-typing app (hold a key, speak, the cleaned-up text is typed for you). Square 1024x1024, full-bleed artwork that will later be masked to the macOS rounded-square shape, so keep the important content inside the central 80% and let the background extend to the edges. No text, no letters, no words anywhere. No watermark. Single clear focal subject, legible at 32 pixels.
+
+Style A: modern Apple-style app icon, soft 3D with gentle depth and subtle glass highlights, like the icons in macOS Tahoe. Subject: a rounded studio microphone in brushed white and warm silver, front view, slightly tilted, with three short horizontal text-like bars floating to its right that fade from a sound wave into clean lines. Background: deep indigo to teal vertical gradient with a faint inner glow. Palette: indigo, teal, white, a touch of warm amber on the mic grille.

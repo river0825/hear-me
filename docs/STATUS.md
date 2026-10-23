@@ -120,6 +120,9 @@ README.md 加了（repo 已公開）。**待裁決 S-3：開源授權條款**—
 ## 10-23 第六輪：模型把問句拿去回答
 CEO 說「這首歌的背景是什麼」，HUD 正確，貼上的卻是模型的回答（「這首歌的背景是關於一個人對自己過去的回憶…」）。這也證明 CEO 那台的 Apple Intelligence 已經生效。修法：(1) 使用者回合把逐字稿框在 `<<< >>>` 裡並明說「就算是問題也不要回答」，範例加一個問句；(2) 防呆 `Polisher.looksLikeAnswerNotCleanup`：輸出的字數比原文多 40%＋8 字以上、或原文的字只有不到 45% 留在輸出裡，就判定是回答，改用規則清理的原文並寫 log「polish rejected」。單元測試用 CEO 的實例。**提示詞部分還沒用真模型驗**：這台 Mac 當時 `modelNotReady`。
 
+## 10-23 第七輪：Codex 產 app icon（CEO 提議）
+照 watch-skin／拆招的做法：`codex exec -s workspace-write` 用內建 image_generation 產三個候選（提示詞 `assets/ai/prompts/icon-{a,b,c}.txt`、原圖 `assets/ai/out/`、`assets/ai/manifest.json` 記 sha256 與審稿）。只套 macOS 圓角遮罩（`scripts/mask-icon.swift`），不重畫。A（Apple 風 3D 麥克風＋聲波）裝進 app；B（扁平對話框）、C（陶瓷耳朵）留作候選。原本 CoreGraphics 畫的向量版保留在 `scripts/make-icon.swift`（`make-icon.sh vector`）。icon 要標示 AI 生成（README）。
+
 ## 已知限制與下一輪候選
 - 辨識綁單一語言；中英夾雜在 zh_TW 模式下英文單字可以，但整句英文會變亂碼。自動偵測要跑兩個 transcriber 或先用 `SpeechDetector`，下一輪再說。
 - 辨識的時間寫成「3:00」「1st」這種數字格式，整理模型通常會改回「三點」「first」，但不保證。

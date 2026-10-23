@@ -6,6 +6,8 @@ Built for people who mostly speak Mandarin (Taiwan) with English technical terms
 
 ![Hear Me icon](docs/evidence/ui/app-icon-1024.png)
 
+*App icon generated with Codex image generation, masked to the macOS icon shape; see `assets/ai/manifest.json`.*
+
 ---
 
 ## 這是什麼

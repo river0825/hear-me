@@ -1,0 +1,31 @@
+{
+ "generated": "2026-10-23",
+ "tool": "Codex CLI (codex exec -s workspace-write) image_generation tool, codex-cli 0.163.0",
+ "requestedBy": "CEO（River）10-23 18:0x：「用 Codex 重新產生一個比較好看一點的 icon」",
+ "text": "none: prompts forbid text, letters, words, watermark",
+ "label": "app icon 是 AI 生成（README／STATUS 標示）",
+ "processing": "只套 macOS 圓角方形遮罩（scripts/mask-icon.swift：10% 邊距、取中央 84% 放大、標準陰影），不重畫、不改色",
+ "images": [
+  {
+   "file": "out/icon-a.png",
+   "prompt": "prompts/icon-a.txt",
+   "sha256": "aa065066c9c67fe58c2d1a7b8b66bd76a10bcfbbed794a239c27330bef1c53a3",
+   "masked": "out/icon-a-masked.png",
+   "review": "Apple 風 3D 麥克風＋三條漸層聲波；主體置中、邊緣乾淨、32px 仍辨得出麥克風。推薦，10-23 裝進 app。"
+  },
+  {
+   "file": "out/icon-b.png",
+   "prompt": "prompts/icon-b.txt",
+   "sha256": "08cba8581354272c5f6e1f7822673756b9696aef0230679adffb6856bf4fedc6",
+   "masked": "out/icon-b-masked.png",
+   "review": "扁平珊瑚色對話框內三條聲波，尾巴變成麥克風底座；辨識度高、風格獨特，但不像系統內建 app。候選。"
+  },
+  {
+   "file": "out/icon-c.png",
+   "prompt": "prompts/icon-c.txt",
+   "sha256": "9f3ce6205795bb8a32e0963c12da682afdfb7bb21a192d7e41dbbc24030531ac",
+   "masked": "out/icon-c-masked.png",
+   "review": "陶瓷耳朵＋金色聲帶＋三條線；最貼「Hear Me」字面，但耳朵當 app 圖示偏怪、聲帶從左邊出血會被遮罩切掉。候選。"
+  }
+ ]
+}

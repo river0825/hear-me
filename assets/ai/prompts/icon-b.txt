@@ -1,0 +1,5 @@
+Use the image_generation tool to create ONE image, then save it as out/icon-b.png in the current directory. Reply with the saved path only.
+
+Image: a macOS app icon for "Hear Me", a voice-typing app (hold a key, speak, the cleaned-up text is typed for you). Square 1024x1024, full-bleed artwork that will later be masked to the macOS rounded-square shape, so keep the important content inside the central 80% and let the background extend to the edges. No text, no letters, no words anywhere. No watermark. Single clear focal subject, legible at 32 pixels.
+
+Style B: flat, friendly, minimal vector illustration with bold shapes and two or three colors only. Subject: a speech bubble whose tail turns into a text cursor, with a simple sound-wave of three vertical rounded bars inside the bubble. Background: a single warm coral-orange tone with a slightly lighter circle behind the subject. Palette: coral, cream, charcoal. Crisp edges, no gradients, no shadows.
