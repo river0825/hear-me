@@ -13,6 +13,13 @@ if [[ -f "$ROOT/Resources/AppIcon.icns" ]]; then
   cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
   /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
 fi
+# CI passes the tag (v0.1.0) and run number so the bundle carries the release version.
+if [[ -n "${HEARME_VERSION:-}" ]]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${HEARME_VERSION#v}" "$APP/Contents/Info.plist"
+fi
+if [[ -n "${HEARME_BUILD:-}" ]]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $HEARME_BUILD" "$APP/Contents/Info.plist"
+fi
 # Sign with the self-signed "HearMe Dev" identity when its keychain exists: the designated requirement
 # (identifier + certificate hash) then stays the same across rebuilds, so Accessibility/microphone grants survive.
 # Falls back to ad-hoc (permissions must be re-granted after every rebuild).
@@ -28,5 +35,6 @@ if [[ -n "$IDENTITY" ]]; then
 else
   codesign --force --sign - --identifier xyz.riverdm.hearme "$APP" >/dev/null
 fi
-codesign -dv "$APP" 2>&1 | grep -E "^Authority=|^Signature=" | head -1
+# Untrusted self-signed identities print no Authority= line; never let this summary fail the script.
+codesign -dv "$APP" 2>&1 | grep -E "^Authority=|^Signature=|^Signed Time=" | head -1 || true
 echo "built: $APP"

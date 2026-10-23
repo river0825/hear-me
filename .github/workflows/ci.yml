@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # GitHub-hosted macOS 26 image (arm64, macOS 26.6.x) ships Xcode 26.0.1–26.6; we pin 26.6.
+  # The app needs the macOS 26 SDK to compile (SpeechAnalyzer, FoundationModels) and a
+  # macOS 26+ runtime to load the test bundle, so this is the one image that can do both.
+  XCODE_APP: /Applications/Xcode_26.6.app
+
+jobs:
+  build-test:
+    name: swift build + swift test (macos-26, Xcode 26.6)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "$XCODE_APP"
+          echo "DEVELOPER_DIR=$XCODE_APP/Contents/Developer" >> "$GITHUB_ENV"
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: swift build
+        run: swift build
+
+      - name: swift test
+        run: swift test
