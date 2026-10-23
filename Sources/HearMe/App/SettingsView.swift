@@ -90,7 +90,7 @@ final class SettingsWindowController {
     func show(settings: Settings) {
         if window == nil {
             let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(settings: settings)))
-            w.title = "說寫 設定"
+            w.title = "Hear Me 設定"
             w.styleMask = [.titled, .closable, .miniaturizable]
             w.isReleasedWhenClosed = false
             w.center()

@@ -1,14 +1,16 @@
-# 說寫 STATUS
+# Hear Me STATUS
 
-最後更新：2026-10-23 14:43（第一輪：POC 建好、檔案路徑端到端驗過、真人收音待 CEO 驗）
+原名〈說寫〉（shuoxie），CEO 10-23 15:5x 指示改名 Hear Me 並放上 GitHub：https://github.com/river0825/hear-me（私人）。
+
+最後更新：2026-10-23 15:55（第二輪：改名 Hear Me、修即時路徑卡死、上 GitHub；真人收音仍待 CEO 驗）
 
 ## 是什麼
 CEO 10-23 直接交辦：「參考 Typeless 的功能，寫一個可以語音輸入的軟體」。
-做出來的是 macOS 選單列 app〈說寫〉：按住 fn（或右 ⌥／右 ⌘）說話，放開後把 Apple 裝置端語音辨識的逐字稿交給 Apple 裝置端模型整理（去填充詞、去重複、改口只留最後、補標點、明確列舉才條列、依 app 換語氣、個人字典、翻譯），再用 ⌘V 貼進原本在用的 app，剪貼簿還原。**全程不連外，沒有任何雲端 API 或 runtime 依賴。**
+做出來的是 macOS 選單列 app〈Hear Me〉：按住 fn（或右 ⌥／右 ⌘）說話，放開後把 Apple 裝置端語音辨識的逐字稿交給 Apple 裝置端模型整理（去填充詞、去重複、改口只留最後、補標點、明確列舉才條列、依 app 換語氣、個人字典、翻譯），再用 ⌘V 貼進原本在用的 app，剪貼簿還原。**全程不連外，沒有任何雲端 API 或 runtime 依賴。**
 
 ## Typeless 功能對照（來源：typeless.com 首頁與定價頁，10-23 抓）
 
-| Typeless | 說寫這一輪 | 備註 |
+| Typeless | Hear Me 這一輪 | 備註 |
 |---|---|---|
 | 按住說話、貼進任何 app | ✅ fn／右⌥／右⌘ 按住說、放開貼；快速點一下＝持續聽到下一次點 | 快捷鍵與貼上需要「輔助使用」權限 |
 | 去填充詞、去重複 | ✅ 裝置端模型；「照打」模式只用規則 | 證據 `docs/evidence/run-*.txt` |
@@ -20,27 +22,28 @@ CEO 10-23 直接交辦：「參考 Typeless 的功能，寫一個可以語音輸
 | 翻譯 | ✅ 輸出語言：英文／日文／台灣正體中文 | 日文把「首頁」直譯了；en→zh 用了「崩潰」「發送」等非台灣用語 |
 | 選取文字下語音指令（改短、換語氣、翻譯、摘要、提問） | ✅ 按住 ⇧＋快捷鍵；先 ⌘C 抓選取文字，說完指令後貼回 | 檔案路徑驗過「翻成英文、正式一點」與「縮短成一句」 |
 | 個人化風格學習 | ❌ 沒做 | 需要累積記錄再做 |
-| 隱私：零雲端、不訓練、記錄在本機 | ✅ 比 Typeless 更嚴：根本不連網 | 記錄 `~/Library/Application Support/ShuoXie/history.jsonl` |
+| 隱私：零雲端、不訓練、記錄在本機 | ✅ 比 Typeless 更嚴：根本不連網 | 記錄 `~/Library/Application Support/HearMe/history.jsonl` |
 | Windows／iOS／Android | ❌ 只有 macOS 26+（Apple Silicon、Apple Intelligence 開啟） | |
 | 「Ask anything」查資料、開網頁 | ❌ 不做（會連外） | |
 
 ## 怎麼跑
 
 ```
-builtin cd shuoxie
+builtin cd hearme
 swift build                      # 需要 Xcode 26+（macOS 27 SDK），Swift 5 語言模式
 swift test                       # 14 個單元測試（按住／點一下狀態機、規則清理、語氣對照、記錄檔、提示詞）
-./scripts/bundle.sh              # 產 build/ShuoXie.app（release，ad-hoc 簽名）
-open build/ShuoXie.app           # 選單列出現麥克風圖示；第一次會要「輔助使用」與「麥克風」
+./scripts/bundle.sh              # 產 build/HearMe.app（release，ad-hoc 簽名）；傳給別台：ditto -c -k --keepParent build/HearMe.app build/HearMe.zip 再 croc send
+open build/HearMe.app           # 選單列出現麥克風圖示；第一次會要「輔助使用」與「麥克風」
 
 # 無麥克風的機器：走檔案路徑
 ./scripts/make-test-audio.sh     # 用系統 TTS 產 4 段測試音檔到 docs/evidence/（gitignore）
-.build/debug/ShuoXie --doctor
-.build/debug/ShuoXie --transcribe docs/evidence/zh-list.wav --polish --tone casual --dict "release notes"
-.build/debug/ShuoXie --polish-text "嗯 我明天 呃 明天下午三點 不對 四點 要跟客戶開會"
-.build/debug/ShuoXie --command "<選取的文字>" --say "幫我翻成英文"
-SHUOXIE_DEMO=1 build/ShuoXie.app/Contents/MacOS/ShuoXie   # 啟動 1 秒後自動開始聽寫
-.build/debug/ShuoXie --render-ui docs/evidence/ui          # HUD 各狀態與設定頁離屏畫成 PNG
+.build/debug/HearMe --doctor
+.build/debug/HearMe --simulate-live docs/evidence/zh-list.wav --polish --verbose   # 即時路徑（麥克風串流）用音檔模擬
+.build/debug/HearMe --transcribe docs/evidence/zh-list.wav --polish --tone casual --dict "release notes"
+.build/debug/HearMe --polish-text "嗯 我明天 呃 明天下午三點 不對 四點 要跟客戶開會"
+.build/debug/HearMe --command "<選取的文字>" --say "幫我翻成英文"
+HEARME_DEMO=1 build/HearMe.app/Contents/MacOS/HearMe   # 啟動 1 秒後自動開始聽寫
+.build/debug/HearMe --render-ui docs/evidence/ui          # HUD 各狀態與設定頁離屏畫成 PNG
 ```
 
 第一次用 fn 鍵前，到「系統設定 → 鍵盤 → 按下 🌐 鍵時」改成「不做任何動作」，否則系統自己的聽寫／表情符號會跟著跳出來。
@@ -59,17 +62,26 @@ SHUOXIE_DEMO=1 build/ShuoXie.app/Contents/MacOS/ShuoXie   # 啟動 1 秒後自�
 | 英文不被翻譯、去 um/uh/you know | ✅ | `run-en-filler.txt` |
 | 翻譯 | 中→英、中→日、英→中 | `run-translate.txt` |
 | 選取文字下指令 | 翻成英文並正式化、縮短 | `run-command-and-translate.txt` |
-| app 啟動 | `build/ShuoXie.app` 以 `SHUOXIE_DEMO=1` 啟動，跑 5 秒沒 crash，log 只有「Accessibility not granted yet」 | `docs/evidence/app-launch.log` |
+| app 啟動 | `build/HearMe.app` 以 `HEARME_DEMO=1` 啟動，跑 5 秒沒 crash，log 只有「Accessibility not granted yet」 | `docs/evidence/app-launch.log` |
 | HUD 與設定頁外觀 | `screencapture` 被擋（終端機沒有螢幕錄製權限），改用 `--render-ui` 離屏畫出 5 個 HUD 狀態與設定頁 | `docs/evidence/ui/*.png` |
+| 即時路徑（麥克風串流的那條程式路徑） | `--simulate-live` 把音檔切成麥克風大小的塊餵進即時辨識：三段都 44 筆左右的即時更新、最後一筆 final、收尾 0.06 秒 | `run-simulate-live.txt` |
 | **真人收音、快捷鍵、貼進別的 app** | **未驗。** 這台機器沒有麥克風、終端機沒有輔助使用權限 | 要 CEO 在有麥克風的 Mac 上做下面的驗收 |
 
+## 10-23 第二輪：CEO 那台卡在「聽寫中」關不掉
+CEO 的 Mac（macOS 26.6.2、Apple Silicon、Apple Intelligence 未開）用選單「開始聽寫」後一直聽寫中、關不掉。在這台機器用 `--simulate-live` 重現並修了三件事：
+1. 辨識結果迴圈每筆都 `await MainActor.run` 回報 UI，主執行緒一忙就整條卡住（CLI 模式 8.7 秒音訊只收到一個字）。改成 `DispatchQueue.main.async`。
+2. 分析器收尾後結果流不一定會結束，`await resultsTask.value` 永遠等不到。改成最多等 1.5 秒，之後用已累積的文字。
+3. 我寫的逾時包裝用 task group，group 會等子任務結束才返回，逾時形同沒有。改成 continuation 競速。
+另外加了：啟動 20 秒逾時、收尾 8 秒逾時、選單「取消（強制回到待命）」、log 寫到 `~/Library/Logs/HearMe.log`（選單「顯示 log 檔」）。
+**CEO 那台的根因還沒確認**（沒有 log），新版若再卡住，請把 log 檔貼過來。
+
 ## 要 CEO 驗（有麥克風的 Mac，macOS 26+，Apple Intelligence 開啟）
-1. `./scripts/bundle.sh && open build/ShuoXie.app`，允許「輔助使用」（系統會跳出）與「麥克風」（第一次聽寫時跳出）。
+1. `./scripts/bundle.sh && open build/HearMe.app`，允許「輔助使用」（系統會跳出）與「麥克風」（第一次聽寫時跳出）。
 2. 開備忘錄，按住 fn 說「嗯 明天下午三點 不對 四點 跟客戶開會 幫我記一下」，放開。預期 2 秒內貼上「明天下午四點跟客戶開會，幫我記一下。」
 3. 開郵件寫信，同一句，預期語氣變正式（「您」）。開終端機，預期只去填充詞、不改寫。
 4. 選一段文字，按住 ⇧+fn 說「幫我翻成英文」，預期選取處被英文取代。
 5. 快速點一下 fn，講一段長的，再點一下結束。
-6. 看 `~/Library/Application Support/ShuoXie/history.jsonl` 有沒有每一筆的 raw／output／秒數。
+6. 看 `~/Library/Application Support/HearMe/history.jsonl` 有沒有每一筆的 raw／output／秒數。
 
 ## 已知限制與下一輪候選
 - 辨識綁單一語言；中英夾雜在 zh_TW 模式下英文單字可以，但整句英文會變亂碼。自動偵測要跑兩個 transcriber 或先用 `SpeechDetector`，下一輪再說。
@@ -85,7 +97,7 @@ SHUOXIE_DEMO=1 build/ShuoXie.app/Contents/MacOS/ShuoXie   # 啟動 1 秒後自�
 - **S-2. 這個 POC 要不要進點子漏斗走產品長審？** 目前是 CEO 直接交辦，沒有提案書；市場上 Typeless、Wispr Flow、superwhisper 已經很擠，差異化只有「完全不連外、免費」。
 
 ## 檔案
-- `Sources/ShuoXie/Core/`：`Settings`（偏好、app 語氣規則）、`PushToTalk`（按住／點一下狀態機）、`HotkeyMonitor`（CGEvent tap）、`AudioCapture`、`Transcriber`（SpeechAnalyzer）、`Polisher`（FoundationModels 提示詞）、`TextInjector`（剪貼簿＋⌘V）、`History`、`Pipeline`。
-- `Sources/ShuoXie/App/`：`AppDelegate`（選單列）、`HUDPanel`（浮動提示）、`SettingsView`（SwiftUI 設定）、`Main`（CLI 模式）。
-- `Tests/ShuoXieTests/`：純邏輯單元測試。
+- `Sources/HearMe/Core/`：`Settings`（偏好、app 語氣規則）、`PushToTalk`（按住／點一下狀態機）、`HotkeyMonitor`（CGEvent tap）、`AudioCapture`、`Transcriber`（SpeechAnalyzer）、`Polisher`（FoundationModels 提示詞）、`TextInjector`（剪貼簿＋⌘V）、`History`、`Pipeline`。
+- `Sources/HearMe/App/`：`AppDelegate`（選單列）、`HUDPanel`（浮動提示）、`SettingsView`（SwiftUI 設定）、`Main`（CLI 模式）。
+- `Tests/HearMeTests/`：純邏輯單元測試。
 - `docs/evidence/`：`run-*.txt` 跑出來的逐字稿與整理結果、截圖；`.wav` 不進 git（`make-test-audio.sh` 重產）。

@@ -1,5 +1,5 @@
 import XCTest
-@testable import ShuoXie
+@testable import HearMe
 
 final class PushToTalkTests: XCTestCase {
     func testHoldToTalk() {
@@ -86,7 +86,7 @@ final class ToneResolverTests: XCTestCase {
 
 final class HistoryTests: XCTestCase {
     func testAppendAndRecent() throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("shuoxie-test-\(UUID()).jsonl")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("hearme-test-\(UUID()).jsonl")
         let h = History(url: url)
         for i in 1...3 {
             h.append(HistoryEntry(date: Date(), app: "com.apple.Notes", mode: "dictate", tone: "general", raw: "raw \(i)", output: "out \(i)", audioSeconds: 1, transcribeSeconds: 0.2, polishSeconds: 1.5))

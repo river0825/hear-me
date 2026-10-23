@@ -21,7 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bindPipeline()
         setupHotkey()
         warmUp()
-        if ProcessInfo.processInfo.environment["SHUOXIE_DEMO"] == "1" {
+        Log.info("launched \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") on \(ProcessInfo.processInfo.operatingSystemVersionString); ax=\(Permissions.accessibilityTrusted(prompt: false)) mic=\(Permissions.microphoneStatus) model=\(Polisher.availability)")
+        if ProcessInfo.processInfo.environment["HEARME_DEMO"] == "1" {
             // Used to screenshot the HUD on a machine without a microphone.
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in pipeline.start(mode: .dictate) }
         }
@@ -46,7 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .error: return ("exclamationmark.triangle", .systemYellow)
             }
         }()
-        let image = NSImage(systemSymbolName: name, accessibilityDescription: "說寫")
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: "Hear Me")
         image?.isTemplate = tint == nil
         button.image = image
         button.contentTintColor = tint
@@ -58,6 +59,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         stateItem.isEnabled = false
         menu.addItem(stateItem)
         menu.addItem(NSMenuItem(title: pipeline.isListening ? "停止聽寫" : "開始聽寫（按住 \(settings.hotkey.label) 也可以）", action: #selector(toggleDictation), keyEquivalent: ""))
+        if pipeline.state != .idle {
+            menu.addItem(NSMenuItem(title: "取消（強制回到待命）", action: #selector(cancelDictation), keyEquivalent: "."))
+        }
         menu.addItem(.separator())
 
         let polish = NSMenuItem(title: "用 AI 整理", action: #selector(togglePolish), keyEquivalent: "")
@@ -104,18 +108,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem(title: "設定…", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "檢查權限…", action: #selector(checkPermissions), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "顯示 log 檔", action: #selector(showLog), keyEquivalent: ""))
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "結束說寫", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "結束 Hear Me", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
     }
 
     private func stateLabel() -> String {
         switch pipeline.state {
-        case .idle: return "說寫：待命"
-        case .listening: return "說寫：聽寫中"
-        case .polishing: return "說寫：整理中"
-        case .done: return "說寫：已貼上"
-        case .error(let m): return "說寫：\(m)"
+        case .idle: return "Hear Me：待命"
+        case .listening: return "Hear Me：聽寫中"
+        case .polishing: return "Hear Me：整理中"
+        case .done: return "Hear Me：已貼上"
+        case .error(let m): return "Hear Me：\(m)"
         }
     }
 
@@ -186,6 +191,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleDictation() {
         if pipeline.isListening { ptt.reset(); pipeline.stop() } else { ptt.reset(); pipeline.start(mode: .dictate) }
     }
+    @objc private func cancelDictation() { ptt.reset(); pipeline.cancel() }
+    @objc private func showLog() { NSWorkspace.shared.activateFileViewerSelecting([Log.fileURL]) }
     @objc private func togglePolish() { settings.polishEnabled.toggle() }
     @objc private func pickTone(_ sender: NSMenuItem) {
         if let raw = sender.representedObject as? String, let t = Tone(rawValue: raw) { settings.defaultTone = t }
@@ -209,7 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "辨識語言：\(settings.speechLocale)",
         ]
         let alert = NSAlert()
-        alert.messageText = "說寫 權限檢查"
+        alert.messageText = "Hear Me 權限檢查"
         alert.informativeText = lines.joined(separator: "\n")
         alert.addButton(withTitle: "好")
         if !ax { alert.addButton(withTitle: "打開輔助使用設定") }

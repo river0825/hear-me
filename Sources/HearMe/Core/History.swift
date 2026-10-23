@@ -23,7 +23,7 @@ final class History {
             self.url = url
         } else {
             let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("ShuoXie", isDirectory: true)
+                .appendingPathComponent("HearMe", isDirectory: true)
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             self.url = dir.appendingPathComponent("history.jsonl")
         }

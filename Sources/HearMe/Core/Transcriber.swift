@@ -25,6 +25,7 @@ final class Transcriber {
 
     private(set) var finalText = ""
     private(set) var volatileText = ""
+    private(set) var fedBuffers = 0
     /// (finalized so far, current volatile tail)
     var onUpdate: ((String, String) -> Void)?
 
@@ -78,6 +79,7 @@ final class Transcriber {
                 for try await result in module.results {
                     guard let self else { return }
                     let text = String(result.text.characters)
+                    Log.info("result final=\(result.isFinal) range=\(result.range.start.seconds)-\(result.range.end.seconds) text=\(text)")
                     if result.isFinal {
                         self.finalText += text
                         self.volatileText = ""
@@ -85,8 +87,10 @@ final class Transcriber {
                         self.volatileText = text
                     }
                     let f = self.finalText, v = self.volatileText
-                    await MainActor.run { self.onUpdate?(f, v) }
+                    // Never block the results loop on the main actor.
+                    DispatchQueue.main.async { self.onUpdate?(f, v) }
                 }
+                Log.info("results stream ended normally")
             } catch {
                 Log.warn("results stream ended: \(error)")
             }
@@ -94,12 +98,15 @@ final class Transcriber {
         try await analyzer.start(inputSequence: stream)
         self.analyzer = analyzer
         self.transcriber = module
+        Log.info("transcriber started (\(localeId), analyzer format \(format.sampleRate) Hz)")
     }
 
     func feed(_ buffer: AVAudioPCMBuffer, at time: AVAudioTime?) {
         guard let converter, let continuation else { return }
         do {
             if let converted = try converter.convert(buffer) {
+                fedBuffers += 1
+                if fedBuffers == 1 { Log.info("first audio buffer: \(buffer.format.sampleRate) Hz ch=\(buffer.format.channelCount) → \(converted.format.sampleRate) Hz") }
                 continuation.yield(AnalyzerInput(buffer: converted))
             }
         } catch {
@@ -107,16 +114,26 @@ final class Transcriber {
         }
     }
 
+    var currentText: String { (finalText + volatileText).trimmingCharacters(in: .whitespacesAndNewlines) }
+
     /// Flush, wait for the last results and return the whole transcript.
     func finish() async -> String {
+        Log.info("transcriber finish: fed \(fedBuffers) buffers, text so far \(currentText.count) chars")
         continuation?.finish()
         do {
             try await analyzer?.finalizeAndFinishThroughEndOfInput()
+            Log.info("analyzer finished")
         } catch {
             Log.warn("finalize failed: \(error)")
             await analyzer?.cancelAndFinishNow()
         }
-        await resultsTask?.value
+        // The results stream does not reliably end after the analyzer finishes (observed on macOS 27),
+        // so give it a short grace period for the last final result, then move on with what we have.
+        let ended = await withTimeout(1.5) { [resultsTask] in await resultsTask?.value }
+        if ended == nil {
+            Log.info("results stream still open after finish; using accumulated text")
+            resultsTask?.cancel()
+        }
         let text = finalText + volatileText
         analyzer = nil
         transcriber = nil
@@ -162,8 +179,55 @@ final class Transcriber {
 
 enum Log {
     static var verbose = false
-    static func info(_ s: String) { if verbose { FileHandle.standardError.write(Data(("[shuoxie] " + s + "\n").utf8)) } }
-    static func warn(_ s: String) { FileHandle.standardError.write(Data(("[shuoxie] " + s + "\n").utf8)) }
+    static let fileURL: URL = {
+        let dir = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0].appendingPathComponent("Logs")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("HearMe.log")
+    }()
+    private static let queue = DispatchQueue(label: "hearme.log")
+    private static let stamp: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"; return f
+    }()
+
+    static func info(_ s: String) { write(s, stderr: verbose) }
+    static func warn(_ s: String) { write(s, stderr: true) }
+
+    private static func write(_ s: String, stderr: Bool) {
+        let line = "\(stamp.string(from: Date())) \(s)\n"
+        if stderr { FileHandle.standardError.write(Data(("[hearme] " + s + "\n").utf8)) }
+        queue.async {
+            if let h = try? FileHandle(forWritingTo: fileURL) {
+                defer { try? h.close() }
+                _ = try? h.seekToEnd()
+                try? h.write(contentsOf: Data(line.utf8))
+            } else {
+                try? Data(line.utf8).write(to: fileURL)
+            }
+        }
+    }
+}
+
+/// Run `op`, giving up after `seconds`. Returns nil on timeout; `op` keeps running in the background
+/// (a task group would wait for it, which is exactly the hang we are guarding against).
+final class TimeoutOnce<T>: @unchecked Sendable {
+    private var cont: CheckedContinuation<T?, Never>?
+    private let lock = NSLock()
+    init(_ c: CheckedContinuation<T?, Never>) { cont = c }
+    func resume(_ v: T?) {
+        lock.lock(); let c = cont; cont = nil; lock.unlock()
+        c?.resume(returning: v)
+    }
+}
+
+func withTimeout<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T) async -> T? {
+    return await withCheckedContinuation { (c: CheckedContinuation<T?, Never>) in
+        let once = TimeoutOnce<T>(c)
+        Task.detached { once.resume(await op()) }
+        Task.detached {
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            once.resume(nil)
+        }
+    }
 }
 
 /// Converts microphone buffers to the analyzer's preferred format (sample rate / channel count).

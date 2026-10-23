@@ -2,18 +2,18 @@
 import PackageDescription
 
 let package = Package(
-    name: "ShuoXie",
+    name: "HearMe",
     platforms: [.macOS("26.0")],
     targets: [
         .executableTarget(
-            name: "ShuoXie",
-            path: "Sources/ShuoXie",
+            name: "HearMe",
+            path: "Sources/HearMe",
             swiftSettings: [.unsafeFlags(["-parse-as-library"])]
         ),
         .testTarget(
-            name: "ShuoXieTests",
-            dependencies: ["ShuoXie"],
-            path: "Tests/ShuoXieTests"
+            name: "HearMeTests",
+            dependencies: ["HearMe"],
+            path: "Tests/HearMeTests"
         ),
     ],
     swiftLanguageVersions: [.v5]

@@ -1,0 +1,25 @@
+# 2026-10-23 15:55 即時路徑模擬（音檔當麥克風分段餵、進度式辨識；release 版）
+$ HearMe --simulate-live docs/evidence/zh-list.wav --polish
+live transcriber started in 0.10s
+fed 34 chunks, 44 live updates, finish took 0.06s
+transcript:
+這次發版要做三件事第一更新登入業第二修掉那個那個閃退的問題 ，第三寫 relisenotes
+polished (on-device model, 1.57s, tone=general, lang=same):
+這次發版要做三件事：
+1. 更新登入頁
+2. 修掉閃退的問題
+3. 寫 release notes
+
+$ HearMe --simulate-live docs/evidence/zh-correction.wav --polish
+live transcriber started in 0.05s
+fed 25 chunks, 33 live updates, finish took 0.04s
+transcript:
+我明天和明天下午 3:00不對 4:00要跟客戶開會 ，你幫我記一下
+polished (on-device model, 0.93s, tone=general, lang=same):
+我明天和明天下午四點要跟客戶開會，你幫我記一下。
+
+$ HearMe --simulate-live docs/evidence/en-filler.wav --locale en_US
+live transcriber started in 0.11s
+fed 25 chunks, 27 live updates, finish took 0.06s
+transcript:
+So I think we should. Ah, ship the login page 1st and then, you know, fix the crash.

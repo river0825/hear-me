@@ -39,11 +39,11 @@ enum UIRender {
         view.layoutSubtreeIfNeeded()
         view.displayIfNeeded()
         guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
-            throw NSError(domain: "ShuoXie", code: 2, userInfo: [NSLocalizedDescriptionKey: "no bitmap rep"])
+            throw NSError(domain: "HearMe", code: 2, userInfo: [NSLocalizedDescriptionKey: "no bitmap rep"])
         }
         view.cacheDisplay(in: view.bounds, to: rep)
         guard let png = rep.representation(using: .png, properties: [:]) else {
-            throw NSError(domain: "ShuoXie", code: 3, userInfo: [NSLocalizedDescriptionKey: "png encode failed"])
+            throw NSError(domain: "HearMe", code: 3, userInfo: [NSLocalizedDescriptionKey: "png encode failed"])
         }
         try png.write(to: url)
         return url

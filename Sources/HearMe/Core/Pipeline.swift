@@ -26,6 +26,8 @@ final class Pipeline: ObservableObject {
     private var selectedText: String?
     private var mode: DictationMode = .dictate
     private var stopping = false
+    private var startTask: Task<Void, Never>?
+    private var startFinished = false
 
     init(settings: Settings) {
         self.settings = settings
@@ -48,12 +50,15 @@ final class Pipeline: ObservableObject {
         volatileText = ""
         selectedText = nil
         state = .listening(mode: mode)
-        Task {
+        startFinished = false
+        Log.info("start mode=\(mode.rawValue) app=\(targetApp?.bundleIdentifier ?? "-")")
+        startTask = Task {
+            defer { startFinished = true }
             do {
                 if mode == .command {
                     selectedText = await TextInjector.copySelection()
                     if (selectedText ?? "").isEmpty {
-                        throw NSError(domain: "ShuoXie", code: 1, userInfo: [NSLocalizedDescriptionKey: "沒有選取文字。先選一段文字，再按住 ⇧ 加快捷鍵說指令。"])
+                        throw NSError(domain: "HearMe", code: 1, userInfo: [NSLocalizedDescriptionKey: "沒有選取文字。先選一段文字，再按住 ⇧ 加快捷鍵說指令。"])
                     }
                 }
                 let t = Transcriber()
@@ -61,11 +66,22 @@ final class Pipeline: ObservableObject {
                     self?.finalText = f
                     self?.volatileText = v
                 }
-                try await t.start(localeId: settings.speechLocale, contextualStrings: settings.dictionary)
+                let locale = settings.speechLocale, dict = settings.dictionary
+                let started = await withTimeout(20) { () -> Error? in
+                    do { try await t.start(localeId: locale, contextualStrings: dict); return nil } catch { return error }
+                }
+                guard let started else { throw NSError(domain: "HearMe", code: 10, userInfo: [NSLocalizedDescriptionKey: "語音辨識啟動逾時（20 秒）。語言模型可能還在下載，稍後再試。"]) }
+                if let error = started { throw error }
+                guard case .listening = state else {
+                    // Stopped while we were starting up.
+                    await t.cancel()
+                    return
+                }
                 transcriber = t
-                _ = try await capture.start { buffer, time in
+                let format = try await capture.start { buffer, time in
                     t.feed(buffer, at: time)
                 }
+                Log.info("capture started: \(format.sampleRate) Hz ch=\(format.channelCount)")
                 startedAt = Date()
             } catch {
                 await fail(error.localizedDescription)
@@ -74,17 +90,38 @@ final class Pipeline: ObservableObject {
     }
 
     func stop() {
-        guard case .listening = state, !stopping else { return }
+        guard case .listening = state, !stopping else {
+            Log.info("stop ignored: state=\(state) stopping=\(stopping)")
+            return
+        }
         stopping = true
+        Log.info("stop")
         capture.stop()
         let audioSeconds = startedAt.map { Date().timeIntervalSince($0) } ?? 0
         state = .polishing
         Task {
             defer { stopping = false }
+            // If start-up has not finished yet, give it a moment, then give up on it.
+            if !startFinished {
+                let done = await withTimeout(3) { [startTask] in await startTask?.value }
+                if done == nil { Log.warn("start-up still pending after stop; cancelling") }
+            }
+            capture.stop()
             let t0 = Date()
-            let raw = await transcriber?.finish() ?? ""
+            var raw = ""
+            if let t = transcriber {
+                let finished = await withTimeout(8) { await t.finish() }
+                if let finished {
+                    raw = finished
+                } else {
+                    Log.warn("finish timed out; using partial text")
+                    raw = t.currentText
+                    await t.cancel()
+                }
+            }
             let transcribeSeconds = Date().timeIntervalSince(t0)
             transcriber = nil
+            Log.info("raw (\(String(format: "%.2f", transcribeSeconds))s, audio \(String(format: "%.1f", audioSeconds))s): \(raw)")
             guard !raw.isEmpty else {
                 state = .error("沒聽到內容")
                 scheduleIdle(after: 1.5)
@@ -121,6 +158,7 @@ final class Pipeline: ObservableObject {
                 app.activate()
                 try? await Task.sleep(nanoseconds: 150_000_000)
             }
+            Log.info("output (\(String(format: "%.2f", polishSeconds))s, tone \(tone.rawValue)): \(output)")
             TextInjector.paste(output, restoreClipboard: settings.restoreClipboard)
             History.shared.append(HistoryEntry(
                 date: Date(), app: bundleId, mode: mode.rawValue, tone: tone.rawValue,
@@ -139,15 +177,20 @@ final class Pipeline: ObservableObject {
         self.state = state
     }
 
+    /// Hard reset from any state; used by the menu's 取消 and as the escape hatch.
     func cancel() {
+        Log.info("cancel from state=\(state)")
         capture.stop()
+        startTask?.cancel()
         let t = transcriber
         transcriber = nil
+        stopping = false
         Task { await t?.cancel() }
         state = .idle
     }
 
     private func fail(_ message: String) async {
+        Log.warn("fail: \(message)")
         capture.stop()
         let t = transcriber
         transcriber = nil
