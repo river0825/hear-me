@@ -34,3 +34,17 @@ transcript (en_US):
 So I think we should. Ah, ship the login page 1st and then, you know, fix the crash.
 polished (on-device model, 1.12s, tone=general, lang=same):
 I think we should ship the login page first and then fix the crash.
+
+# 2026-10-23 17:31 規則收緊後重跑：只有主語言輸出的漢字比例低於一半才考慮第二語言
+$ HearMe --transcribe docs/evidence/en-filler.wav --locale zh_TW --locale2 en_US
+  [zh_TW] confidence 0.87: I'm so I think we should ah ship the logan page first and then You know fixs the crash.
+  [en_US] confidence 0.86: Um, so I think we should. Ah, ship the login page 1st and then, you know, fix the crash.
+transcript (en_US, 0.47s):
+$ HearMe --transcribe docs/evidence/zh-list.wav --locale zh_TW --locale2 en_US
+  [zh_TW] confidence 0.86: 這次發版要做三件事第一更新登入業第二修掉那個那個閃退的問題第三寫 realeasenotes。
+  [en_US] confidence 0.04: , , , , , , , ,, ,, ,, ,, ,, ,, ,.
+transcript (zh_TW, 0.37s):
+$ HearMe --transcribe docs/evidence/zh-dict.wav --locale zh_TW --locale2 en_US
+  [zh_TW] confidence 0.92: 請幫我把 Irannote的訓練記錄繪出 ，然後傳到拆招的測試伺服器。
+  [en_US] confidence 0.25: Qing bang wo by Iran node, the Xin Lian Chi Lu Hui Chu, Jiang Ho, Chan, dao, Chai, Zi, Fu Chi.
+transcript (zh_TW, 0.31s):

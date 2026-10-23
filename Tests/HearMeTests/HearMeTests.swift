@@ -174,9 +174,27 @@ final class LanguagePickTests: XCTestCase {
     }
 
     func testEnglishSpeechUnderChinesePrimaryPicksEnglish() {
-        XCTAssertLessThan(Transcriber.score(text: "I'm so I think we should ship the logan page", localeId: "zh_TW", confidence: 0.87),
-                          Transcriber.score(text: "So I think we should ship the login page", localeId: "en_US", confidence: 0.84))
-        XCTAssertGreaterThan(Transcriber.score(text: "請幫我把 Irannote 的訓練記錄匯出", localeId: "zh_TW", confidence: 0.92),
-                             Transcriber.score(text: "Qing bang wo by Iran node", localeId: "en_US", confidence: 0.25))
+        XCTAssertEqual(Transcriber.chooseIndex([
+            ("zh_TW", "I'm so I think we should ship the logan page", 0.87),
+            ("en_US", "So I think we should ship the login page", 0.84),
+        ]), 1)
+        XCTAssertEqual(Transcriber.chooseIndex([
+            ("zh_TW", "Pregenarate a new I can't for this app", 0.80),
+            ("en_US", "Please generate a new icon for this app", 0.90),
+        ]), 1)
+    }
+
+    func testChineseSpeechKeepsChineseEvenWhenEnglishModelIsConfident() {
+        // CEO 10-23: 「直接把它變成公開的 repo」 came out as the English model's "So the champions and Gong Kai, the repo."
+        XCTAssertEqual(Transcriber.chooseIndex([
+            ("zh_TW", "直接把它變成公開的 repo", 0.70),
+            ("en_US", "So the champions and Gong Kai, the repo.", 0.95),
+        ]), 0)
+        XCTAssertEqual(Transcriber.chooseIndex([
+            ("zh_TW", "請幫我把 Irannote 的訓練記錄匯出", 0.92),
+            ("en_US", "Qing bang wo by Iran node", 0.25),
+        ]), 0)
+        // Primary empty, secondary confident → secondary.
+        XCTAssertEqual(Transcriber.chooseIndex([("zh_TW", "", 0), ("en_US", "Hello there", 0.9)]), 1)
     }
 }

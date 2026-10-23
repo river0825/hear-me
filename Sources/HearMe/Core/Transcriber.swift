@@ -198,20 +198,39 @@ final class Transcriber {
         confidence * scriptMatch(text, localeId: localeId)
     }
 
+    /// Decide between the primary language and the secondary one.
+    /// The secondary model's output is, by construction, always in its own script and it is confident
+    /// even on speech it cannot understand ("Gong Kai, the repo" for 公開的 repo), so it is only
+    /// considered when the primary model itself produced mostly foreign-script text — which is what the
+    /// zh model does when it hears English ("Pregenarate a new I can't").
     static func choose(_ tracks: [Track]) -> Outcome {
         let alts = tracks.map { (localeId: $0.localeId, text: $0.text, confidence: $0.meanConfidence) }
         guard let primary = tracks.first else { return Outcome(text: "", localeId: "", alternatives: []) }
         var best = primary
-        var bestScore = score(text: primary.text, localeId: primary.localeId, confidence: primary.meanConfidence)
-        for t in tracks.dropFirst() where !t.text.isEmpty {
-            let sc = score(text: t.text, localeId: t.localeId, confidence: t.meanConfidence)
-            // Ties go to the primary language.
-            if sc > bestScore + 0.05 || best.text.isEmpty { best = t; bestScore = sc }
+        let primaryScript = scriptMatch(primary.text, localeId: primary.localeId)
+        let primaryWeak = primary.text.isEmpty || primaryScript < 0.5
+        if primaryWeak {
+            for t in tracks.dropFirst() where !t.text.isEmpty && t.meanConfidence >= 0.5 {
+                if scriptMatch(t.text, localeId: t.localeId) >= 0.5 && (best === primary || t.meanConfidence > best.meanConfidence) { best = t }
+            }
         }
         if tracks.count > 1 {
             Log.info("language pick: " + tracks.map { "\($0.localeId) conf=\(String(format: "%.2f", $0.meanConfidence)) script=\(String(format: "%.2f", scriptMatch($0.text, localeId: $0.localeId))) \"\($0.text.prefix(40))\"" }.joined(separator: " | ") + " → \(best.localeId)")
         }
         return Outcome(text: best.text, localeId: best.localeId, alternatives: alts)
+    }
+
+    /// Pure version of the decision for tests: returns the index of the chosen candidate.
+    static func chooseIndex(_ candidates: [(localeId: String, text: String, confidence: Double)]) -> Int {
+        guard let primary = candidates.first else { return 0 }
+        let primaryWeak = primary.text.isEmpty || scriptMatch(primary.text, localeId: primary.localeId) < 0.5
+        guard primaryWeak else { return 0 }
+        var bestIndex = 0
+        var bestConf = -1.0
+        for (i, c) in candidates.enumerated().dropFirst() where !c.text.isEmpty && c.confidence >= 0.5 && scriptMatch(c.text, localeId: c.localeId) >= 0.5 {
+            if c.confidence > bestConf { bestIndex = i; bestConf = c.confidence }
+        }
+        return bestIndex
     }
 
     func cancel() async {
