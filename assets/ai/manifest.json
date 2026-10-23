@@ -11,14 +11,14 @@
    "prompt": "prompts/icon-a.txt",
    "sha256": "aa065066c9c67fe58c2d1a7b8b66bd76a10bcfbbed794a239c27330bef1c53a3",
    "masked": "out/icon-a-masked.png",
-   "review": "Apple 風 3D 麥克風＋三條漸層聲波；主體置中、邊緣乾淨、32px 仍辨得出麥克風。推薦，10-23 裝進 app。"
+   "review": "Apple 風 3D 麥克風＋三條漸層聲波；主體置中、邊緣乾淨、32px 仍辨得出麥克風。10-23 先裝進 app，CEO 選了 B 後退為候選。"
   },
   {
    "file": "out/icon-b.png",
    "prompt": "prompts/icon-b.txt",
    "sha256": "08cba8581354272c5f6e1f7822673756b9696aef0230679adffb6856bf4fedc6",
    "masked": "out/icon-b-masked.png",
-   "review": "扁平珊瑚色對話框內三條聲波，尾巴變成麥克風底座；辨識度高、風格獨特，但不像系統內建 app。候選。"
+   "review": "扁平珊瑚色對話框內三條聲波，尾巴變成麥克風底座；辨識度高、風格獨特。CEO 10-23 選定，裝進 app（v0.1.6 起）。"
   },
   {
    "file": "out/icon-c.png",
@@ -27,5 +27,6 @@
    "masked": "out/icon-c-masked.png",
    "review": "陶瓷耳朵＋金色聲帶＋三條線；最貼「Hear Me」字面，但耳朵當 app 圖示偏怪、聲帶從左邊出血會被遮罩切掉。候選。"
   }
- ]
+ ],
+ "chosen": "out/icon-b.png（CEO 10-23 選定）"
 }

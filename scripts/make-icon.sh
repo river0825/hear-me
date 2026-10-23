@@ -1,12 +1,12 @@
 #!/bin/zsh
 # Regenerate Resources/AppIcon.icns.
-#   default:            mask the AI artwork assets/ai/out/icon-a.png (Codex image_generation, see assets/ai/manifest.json)
+#   default:            mask the AI artwork assets/ai/out/icon-b.png (Codex image_generation, see assets/ai/manifest.json)
 #   make-icon.sh vector: draw the fallback vector icon with scripts/make-icon.swift (no assets)
 #   make-icon.sh <png>:  mask any 1024x1024 full-bleed artwork
 set -euo pipefail
 ROOT="$(builtin cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d)"
-MODE="${1:-$ROOT/assets/ai/out/icon-a.png}"
+MODE="${1:-$ROOT/assets/ai/out/icon-b.png}"
 if [[ "$MODE" == "vector" ]]; then
   swiftc -O "$ROOT/scripts/make-icon.swift" -o "$TMP/icon"
   "$TMP/icon" "$TMP/AppIcon.iconset" >/dev/null
