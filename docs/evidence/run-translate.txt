@@ -1,0 +1,18 @@
+# 2026-10-23 14:39 翻譯模式
+$ ShuoXie --polish-text "欸 那個 我想說 我們 我們是不是應該先把 首頁改好 再 再來弄付款 因為 嗯 使用者第一眼看到的是首頁嘛" --lang english
+raw:
+欸 那個 我想說 我們 我們是不是應該先把 首頁改好 再 再來弄付款 因為 嗯 使用者第一眼看到的是首頁嘛
+polished (on-device model, 1.02s, tone=general, lang=english):
+We should probably fix the homepage first, then work on the payment. Because the user sees the homepage first.
+
+$ ... --lang japanese
+raw:
+欸 那個 我想說 我們 我們是不是應該先把 首頁改好 再 再來弄付款 因為 嗯 使用者第一眼看到的是首頁嘛
+polished (on-device model, 1.23s, tone=general, lang=japanese):
+私たちはまず首頁を修正してから、支払い処理を進めるべきでしょうか。なぜなら、ユーザーは最初に首頁を見るからです。
+
+$ ShuoXie --transcribe en-filler.wav --locale en_US --lang traditionalChinese --polish
+transcript (en_US, 0.18s):
+Um, so I think we should. Ah, ship the login page 1st and then, you know, fix the crash.
+polished (on-device model, 0.88s, tone=general, lang=traditionalChinese):
+我認為我們應該先發送登入頁面，然後修復崩潰。

@@ -1,0 +1,91 @@
+# 說寫 STATUS
+
+最後更新：2026-10-23 14:43（第一輪：POC 建好、檔案路徑端到端驗過、真人收音待 CEO 驗）
+
+## 是什麼
+CEO 10-23 直接交辦：「參考 Typeless 的功能，寫一個可以語音輸入的軟體」。
+做出來的是 macOS 選單列 app〈說寫〉：按住 fn（或右 ⌥／右 ⌘）說話，放開後把 Apple 裝置端語音辨識的逐字稿交給 Apple 裝置端模型整理（去填充詞、去重複、改口只留最後、補標點、明確列舉才條列、依 app 換語氣、個人字典、翻譯），再用 ⌘V 貼進原本在用的 app，剪貼簿還原。**全程不連外，沒有任何雲端 API 或 runtime 依賴。**
+
+## Typeless 功能對照（來源：typeless.com 首頁與定價頁，10-23 抓）
+
+| Typeless | 說寫這一輪 | 備註 |
+|---|---|---|
+| 按住說話、貼進任何 app | ✅ fn／右⌥／右⌘ 按住說、放開貼；快速點一下＝持續聽到下一次點 | 快捷鍵與貼上需要「輔助使用」權限 |
+| 去填充詞、去重複 | ✅ 裝置端模型；「照打」模式只用規則 | 證據 `docs/evidence/run-*.txt` |
+| 改口只留最後（「三點，不對，四點」） | ✅ 逐字稿有「不對／不是／應該是」時加提醒 | 「不對」穩定；「不是」這種語意含糊的會保留原句（見 run-zh-correction.txt 第三例） |
+| 自動排版（清單、步驟） | ✅ 只在明確列舉三項以上才條列 | 第一版什麼都條列，已修 |
+| 個人字典 | ✅ 同時餵給辨識（contextual strings）與整理模型 | 辨識端對 TTS 的「IronNote」沒救回，整理端 3/3 修回 |
+| 每個 app 不同語氣 | ✅ bundle id → 一般／正式／口語／照打；預設郵件正式、通訊軟體口語、終端機與編輯器照打 | 設定頁可改，支援前綴規則 |
+| 100+ 語言、自動偵測 | ⚠️ 單一辨識語言（zh_TW／zh_CN／zh_HK／en_US／en_GB／ja_JP 可選），不自動偵測 | Apple 辨識模型綁語言；中文模式下英文單字可混說 |
+| 翻譯 | ✅ 輸出語言：英文／日文／台灣正體中文 | 日文把「首頁」直譯了；en→zh 用了「崩潰」「發送」等非台灣用語 |
+| 選取文字下語音指令（改短、換語氣、翻譯、摘要、提問） | ✅ 按住 ⇧＋快捷鍵；先 ⌘C 抓選取文字，說完指令後貼回 | 檔案路徑驗過「翻成英文、正式一點」與「縮短成一句」 |
+| 個人化風格學習 | ❌ 沒做 | 需要累積記錄再做 |
+| 隱私：零雲端、不訓練、記錄在本機 | ✅ 比 Typeless 更嚴：根本不連網 | 記錄 `~/Library/Application Support/ShuoXie/history.jsonl` |
+| Windows／iOS／Android | ❌ 只有 macOS 26+（Apple Silicon、Apple Intelligence 開啟） | |
+| 「Ask anything」查資料、開網頁 | ❌ 不做（會連外） | |
+
+## 怎麼跑
+
+```
+builtin cd shuoxie
+swift build                      # 需要 Xcode 26+（macOS 27 SDK），Swift 5 語言模式
+swift test                       # 14 個單元測試（按住／點一下狀態機、規則清理、語氣對照、記錄檔、提示詞）
+./scripts/bundle.sh              # 產 build/ShuoXie.app（release，ad-hoc 簽名）
+open build/ShuoXie.app           # 選單列出現麥克風圖示；第一次會要「輔助使用」與「麥克風」
+
+# 無麥克風的機器：走檔案路徑
+./scripts/make-test-audio.sh     # 用系統 TTS 產 4 段測試音檔到 docs/evidence/（gitignore）
+.build/debug/ShuoXie --doctor
+.build/debug/ShuoXie --transcribe docs/evidence/zh-list.wav --polish --tone casual --dict "release notes"
+.build/debug/ShuoXie --polish-text "嗯 我明天 呃 明天下午三點 不對 四點 要跟客戶開會"
+.build/debug/ShuoXie --command "<選取的文字>" --say "幫我翻成英文"
+SHUOXIE_DEMO=1 build/ShuoXie.app/Contents/MacOS/ShuoXie   # 啟動 1 秒後自動開始聽寫
+.build/debug/ShuoXie --render-ui docs/evidence/ui          # HUD 各狀態與設定頁離屏畫成 PNG
+```
+
+第一次用 fn 鍵前，到「系統設定 → 鍵盤 → 按下 🌐 鍵時」改成「不做任何動作」，否則系統自己的聽寫／表情符號會跟著跳出來。
+
+## 證據（10-23，這台 Mac Studio，M3 Ultra、macOS 27.0）
+
+| 關卡 | 結果 | 證據 |
+|---|---|---|
+| 編譯、單元測試 | `swift build` 過；`swift test` 14/14 | 本檔；重跑即可 |
+| 裝置端模型可用 | `SystemLanguageModel.default.availability == available` | `--doctor` 輸出 |
+| 語音辨識（檔案） | zh_TW 6.4 秒音檔 0.2–0.5 秒出稿；en_US 第一次 12.8 秒（含下載模型），之後 0.2 秒 | `docs/evidence/run-*.txt` |
+| 整理（裝置端模型） | 每段 0.6–1.5 秒 | 同上 |
+| 改口 | 「三點 不對 四點」→「我明天下午四點要跟客戶開會，你幫我記一下。」 | `run-zh-correction.txt` |
+| 條列 | 「三件事 第一…第二…第三…」→ 編號三行；一般句子不條列 | `run-zh-list.txt`、`run-zh-correction.txt` |
+| 字典 | 辨識出「Irannote」，整理後 3/3 次是「IronNote」；「繪出」→「匯出」 | `run-zh-dict.txt` |
+| 英文不被翻譯、去 um/uh/you know | ✅ | `run-en-filler.txt` |
+| 翻譯 | 中→英、中→日、英→中 | `run-translate.txt` |
+| 選取文字下指令 | 翻成英文並正式化、縮短 | `run-command-and-translate.txt` |
+| app 啟動 | `build/ShuoXie.app` 以 `SHUOXIE_DEMO=1` 啟動，跑 5 秒沒 crash，log 只有「Accessibility not granted yet」 | `docs/evidence/app-launch.log` |
+| HUD 與設定頁外觀 | `screencapture` 被擋（終端機沒有螢幕錄製權限），改用 `--render-ui` 離屏畫出 5 個 HUD 狀態與設定頁 | `docs/evidence/ui/*.png` |
+| **真人收音、快捷鍵、貼進別的 app** | **未驗。** 這台機器沒有麥克風、終端機沒有輔助使用權限 | 要 CEO 在有麥克風的 Mac 上做下面的驗收 |
+
+## 要 CEO 驗（有麥克風的 Mac，macOS 26+，Apple Intelligence 開啟）
+1. `./scripts/bundle.sh && open build/ShuoXie.app`，允許「輔助使用」（系統會跳出）與「麥克風」（第一次聽寫時跳出）。
+2. 開備忘錄，按住 fn 說「嗯 明天下午三點 不對 四點 跟客戶開會 幫我記一下」，放開。預期 2 秒內貼上「明天下午四點跟客戶開會，幫我記一下。」
+3. 開郵件寫信，同一句，預期語氣變正式（「您」）。開終端機，預期只去填充詞、不改寫。
+4. 選一段文字，按住 ⇧+fn 說「幫我翻成英文」，預期選取處被英文取代。
+5. 快速點一下 fn，講一段長的，再點一下結束。
+6. 看 `~/Library/Application Support/ShuoXie/history.jsonl` 有沒有每一筆的 raw／output／秒數。
+
+## 已知限制與下一輪候選
+- 辨識綁單一語言；中英夾雜在 zh_TW 模式下英文單字可以，但整句英文會變亂碼。自動偵測要跑兩個 transcriber 或先用 `SpeechDetector`，下一輪再說。
+- 辨識的時間寫成「3:00」「1st」這種數字格式，整理模型通常會改回「三點」「first」，但不保證。
+- 裝置端模型對「不是」這類改口判斷保守（會整句保留）；「不對」穩定。要更準可以在逐字稿層做規則，或等更大的模型。
+- ad-hoc 簽名：每次重打包，輔助使用權限要重新勾。要穩定需要 Apple Development 憑證（這台機器 `security find-identity` 沒有任何簽章身分 → 待裁決：要不要用 CEO 的 Apple ID 建開發憑證）。
+- fn 鍵的系統預設動作要使用者自己改；之後可以用 CGEvent tap 攔掉，但要「輸入監控」權限。
+- 沒做：個人化風格學習、Windows／手機版、HUD 顯示波形、長句的即時逐字顯示只顯示最後 90 字。
+- 日文翻譯會把中文專有名詞直譯（「首頁」）；可以在翻譯模式也餵字典對照。
+
+## 待裁決
+- **S-1. 要不要簽開發憑證？** 沒有的話每次重打包後 CEO 都要重勾輔助使用。需要 Apple ID 登入 Xcode（CEO 執行）。
+- **S-2. 這個 POC 要不要進點子漏斗走產品長審？** 目前是 CEO 直接交辦，沒有提案書；市場上 Typeless、Wispr Flow、superwhisper 已經很擠，差異化只有「完全不連外、免費」。
+
+## 檔案
+- `Sources/ShuoXie/Core/`：`Settings`（偏好、app 語氣規則）、`PushToTalk`（按住／點一下狀態機）、`HotkeyMonitor`（CGEvent tap）、`AudioCapture`、`Transcriber`（SpeechAnalyzer）、`Polisher`（FoundationModels 提示詞）、`TextInjector`（剪貼簿＋⌘V）、`History`、`Pipeline`。
+- `Sources/ShuoXie/App/`：`AppDelegate`（選單列）、`HUDPanel`（浮動提示）、`SettingsView`（SwiftUI 設定）、`Main`（CLI 模式）。
+- `Tests/ShuoXieTests/`：純邏輯單元測試。
+- `docs/evidence/`：`run-*.txt` 跑出來的逐字稿與整理結果、截圖；`.wav` 不進 git（`make-test-audio.sh` 重產）。

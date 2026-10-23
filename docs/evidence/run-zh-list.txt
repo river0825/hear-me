@@ -1,0 +1,8 @@
+# 2026-10-23 14:39 ShuoXie --transcribe zh-list.wav --polish --app Slack --tone casual --dict 'release notes'
+transcript (zh_TW, 0.28s):
+這次發版要做三件事第一更新登入業第二修掉那個那個閃退的問題第三寫 realeasenotes。
+polished (on-device model, 0.99s, tone=casual, lang=same):
+這次發版要做三件事：
+1. 更新登入頁
+2. 修掉閃退的問題
+3. 寫 release notes

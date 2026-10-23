@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key><string>zh_TW</string>
+    <key>CFBundleExecutable</key><string>ShuoXie</string>
+    <key>CFBundleIdentifier</key><string>xyz.riverdm.shuoxie</string>
+    <key>CFBundleName</key><string>說寫</string>
+    <key>CFBundleDisplayName</key><string>說寫</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>0.1.0</string>
+    <key>CFBundleVersion</key><string>1</string>
+    <key>LSMinimumSystemVersion</key><string>26.0</string>
+    <key>LSUIElement</key><true/>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSMicrophoneUsageDescription</key><string>說寫需要麥克風來聽你說話，語音全部在這台電腦上辨識，不會上傳。</string>
+    <key>NSSpeechRecognitionUsageDescription</key><string>說寫用 Apple 裝置端語音辨識把你說的話變成文字。</string>
+    <key>NSAppleEventsUsageDescription</key><string>說寫把整理好的文字貼進你正在用的 app。</string>
+</dict>
+</plist>

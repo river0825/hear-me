@@ -1,0 +1,20 @@
+# 2026-10-23 14:38 選取文字下指令 / 翻譯
+$ ShuoXie --command "我們這次的更新把登入流程重做了，速度快很多，也修了幾個閃退。" --say "嗯 幫我翻成英文 然後語氣正式一點"
+result (0.78s):
+Our latest update has redesigned the login process for improved speed, and also fixed several crashes.
+
+$ ShuoXie --command "..." --say "幫我縮短成一句"
+result (0.91s):
+這次更新重做登入流程，速度更快，也修復了閃退，並更新了設定頁的排版與字體。
+
+$ ShuoXie --polish-text "欸 那個 我想說 我們 我們是不是應該先把 首頁改好 再 再來弄付款 因為 嗯 使用者第一眼看到的是首頁嘛" --lang english
+raw:
+欸 那個 我想說 我們 我們是不是應該先把 首頁改好 再 再來弄付款 因為 嗯 使用者第一眼看到的是首頁嘛
+polished (on-device model, 0.86s, tone=general, lang=english):
+我們是不是應該先把首頁改好，再來弄付款？因為使用者第一眼看到的是首頁。
+
+$ ShuoXie --polish-text "..." --tone verbatim
+raw:
+嗯 git commit 然後 呃 push 到 main
+polished (rules, 0.00s, tone=verbatim, lang=same):
+git commit 然後 push 到 main

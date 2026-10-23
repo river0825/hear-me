@@ -1,0 +1,5 @@
+# 2026-10-23 14:40 ShuoXie --transcribe en-filler.wav --locale en_US --polish --app Mail --tone formal
+transcript (en_US, 0.18s):
+Um, so I think we should. Ah, ship the login page 1st and then, you know, fix the crash.
+polished (on-device model, 0.61s, tone=formal, lang=same):
+I think we should ship the login page first and then fix the crash.

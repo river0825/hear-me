@@ -1,0 +1,13 @@
+# 2026-10-23 14:40 ShuoXie --transcribe zh-dict.wav --dict 'IronNote,拆招,匯出' --polish --tone formal --app 郵件（連跑 3 次看穩定度）
+transcript (zh_TW, 0.31s):
+請幫我把 Irannote的訓練記錄繪出 ，然後傳到拆招的測試伺服器。
+polished (on-device model, 1.50s, tone=formal, lang=same):
+請協助將 IronNote的訓練紀錄繪出，並匯出至拆招的測試伺服器。
+transcript (zh_TW, 0.24s):
+請幫我把 Irannote的訓練記錄繪出 ，然後傳到拆招的測試伺服器。
+polished (on-device model, 0.99s, tone=formal, lang=same):
+請協助將 IronNote的訓練紀錄繪出，並匯出至拆招的測試伺服器。
+transcript (zh_TW, 0.23s):
+請幫我把 Irannote的訓練記錄繪出 ，然後傳到拆招的測試伺服器。
+polished (on-device model, 0.96s, tone=formal, lang=same):
+請協助將 IronNote的訓練紀錄繪出，並匯出至拆招的測試伺服器。
