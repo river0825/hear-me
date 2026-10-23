@@ -108,6 +108,18 @@ final class HistoryTests: XCTestCase {
     }
 }
 
+final class PolishGuardTests: XCTestCase {
+    func testAnswerIsRejected() {
+        XCTAssertTrue(Polisher.looksLikeAnswerNotCleanup(raw: "這首歌的背景是什麼", output: "這首歌的背景是關於一個人對自己過去的回憶，以及對未來的期望。"))
+    }
+    func testCleanupsAreAccepted() {
+        XCTAssertFalse(Polisher.looksLikeAnswerNotCleanup(raw: "欸 這首歌的背景是什麼", output: "這首歌的背景是什麼？"))
+        XCTAssertFalse(Polisher.looksLikeAnswerNotCleanup(raw: "嗯 我明天 呃 明天下午三點 不對 四點 要跟客戶開會 你幫我記一下", output: "我明天下午四點要跟客戶開會，你幫我記一下。"))
+        XCTAssertFalse(Polisher.looksLikeAnswerNotCleanup(raw: "這次發版要做三件事第一更新登入頁第二修掉那個那個閃退的問題第三寫 release notes", output: "這次發版要做三件事：\n1. 更新登入頁\n2. 修掉閃退的問題\n3. 寫 release notes"))
+        XCTAssertFalse(Polisher.looksLikeAnswerNotCleanup(raw: "um so I think we should, uh, ship the login page first and then, you know, fix the crash", output: "I think we should ship the login page first and then fix the crash."))
+    }
+}
+
 final class PolisherPromptTests: XCTestCase {
     func testPromptMentionsDictionaryAndTone() {
         let r = PolishRequest(raw: "x", tone: .formal, outputLanguage: .english, dictionary: ["IronNote", "拆招"], appName: "Mail", speechLocale: "zh_TW")

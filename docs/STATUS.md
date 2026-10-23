@@ -2,7 +2,7 @@
 
 原名〈說寫〉（shuoxie），CEO 10-23 15:5x 指示改名 Hear Me 並放上 GitHub：https://github.com/river0825/hear-me（CEO 10-23 17:4x 指示改公開）。
 
-最後更新：2026-10-23 17:39（第五輪：晶晶體規則層、README、repo 公開）
+最後更新：2026-10-23 17:50（第六輪：模型回答問句的防呆）
 
 ## 是什麼
 CEO 10-23 直接交辦：「參考 Typeless 的功能，寫一個可以語音輸入的軟體」。
@@ -116,6 +116,9 @@ CEO 的 Mac（macOS 26.6.2、Apple Silicon、Apple Intelligence 未開）用選�
 ## 10-23 第五輪：晶晶體（CEO：平常說中文，夾英文技術詞）
 不靠模型的規則層，Apple Intelligence 沒開也有效：(1) 內建約 130 個開發用語（`Core/DevVocabulary.swift`）＋個人字典＋更正記憶右側，對逐字稿裡的英文單字做編輯距離 1–2 的模糊修拼字，4 字母以下、複數／時態變化不動；(2) 中英之間加空格（盤古之白）；(3) 整理模型提示詞加「英文技術詞保留英文、修拼字、不翻譯」。設定頁可關。證據 `run-dev-vocabulary.txt`：realeasenotes → release notes、icone → icon、featur → feature、comit → commit、github → GitHub。
 README.md 加了（repo 已公開）。**待裁決 S-3：開源授權條款**——公開 repo 目前沒有 LICENSE 檔，要選哪一種是法律文件，CEO 決定。
+
+## 10-23 第六輪：模型把問句拿去回答
+CEO 說「這首歌的背景是什麼」，HUD 正確，貼上的卻是模型的回答（「這首歌的背景是關於一個人對自己過去的回憶…」）。這也證明 CEO 那台的 Apple Intelligence 已經生效。修法：(1) 使用者回合把逐字稿框在 `<<< >>>` 裡並明說「就算是問題也不要回答」，範例加一個問句；(2) 防呆 `Polisher.looksLikeAnswerNotCleanup`：輸出的字數比原文多 40%＋8 字以上、或原文的字只有不到 45% 留在輸出裡，就判定是回答，改用規則清理的原文並寫 log「polish rejected」。單元測試用 CEO 的實例。**提示詞部分還沒用真模型驗**：這台 Mac 當時 `modelNotReady`。
 
 ## 已知限制與下一輪候選
 - 辨識綁單一語言；中英夾雜在 zh_TW 模式下英文單字可以，但整句英文會變亂碼。自動偵測要跑兩個 transcriber 或先用 `SpeechDetector`，下一輪再說。

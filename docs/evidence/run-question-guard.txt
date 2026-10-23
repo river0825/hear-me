@@ -1,0 +1,26 @@
+# 2026-10-23 17:49 問句不能被回答：提示詞框住逐字稿＋長度／重疊防呆（連跑 5 次）
+欸 這首歌的背景是什麼
+polished (rules, 0.01s, tone=general, lang=same):
+這首歌的背景是什麼
+欸 這首歌的背景是什麼
+polished (rules, 0.00s, tone=general, lang=same):
+這首歌的背景是什麼
+欸 這首歌的背景是什麼
+polished (rules, 0.00s, tone=general, lang=same):
+這首歌的背景是什麼
+欸 這首歌的背景是什麼
+polished (rules, 0.00s, tone=general, lang=same):
+這首歌的背景是什麼
+欸 這首歌的背景是什麼
+polished (rules, 0.00s, tone=general, lang=same):
+這首歌的背景是什麼
+
+$ --polish-text "嗯 你覺得我們要不要先做登入頁 還是先修閃退"
+polished (rules, 0.00s, tone=general, lang=same):
+你覺得我們要不要先做登入頁 還是先修閃退
+polished (rules, 0.00s, tone=general, lang=same):
+你覺得我們要不要先做登入頁 還是先修閃退
+polished (rules, 0.00s, tone=general, lang=same):
+你覺得我們要不要先做登入頁 還是先修閃退
+
+# 注意：這台 Mac 跑的當下裝置端模型是 modelNotReady（系統更新模型中），以上全是規則路徑。防呆函式 looksLikeAnswerNotCleanup 有單元測試（PolishGuardTests），用 CEO 的實例驗證會被擋。提示詞改動待模型恢復後用真模型重驗。
