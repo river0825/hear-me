@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # full history + tags: release notes are built from commits since the previous tag
 
       - name: Select Xcode
         run: |
@@ -76,7 +78,7 @@ jobs:
           ditto -c -k --keepParent build/HearMe.app build/HearMe.zip
           shasum -a 256 build/HearMe.zip | tee build/HearMe.zip.sha256
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: HearMe-${{ github.ref_name }}
           path: |
@@ -91,10 +93,21 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
+          PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          NOTES="$RUNNER_TEMP/notes.md"
+          {
+            echo "## 變更（${PREV:-起點} → $TAG）"
+            echo
+            git log --no-merges --format='- %s (%h)' ${PREV:+$PREV..}"$TAG"
+            echo
+            echo "macOS 26+、Apple Silicon。解開 HearMe.zip 後把 HearMe.app 放到「應用程式」再開啟；第一次會要「輔助使用」與「麥克風」權限。"
+            echo
+          } > "$NOTES"
+          cat "$NOTES"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" build/HearMe.zip build/HearMe.zip.sha256 --clobber
           else
             gh release create "$TAG" build/HearMe.zip build/HearMe.zip.sha256 \
-              --title "Hear Me $TAG" --generate-notes --verify-tag
+              --title "Hear Me $TAG" --notes-file "$NOTES" --generate-notes --verify-tag
           fi
           gh release view "$TAG" --json url,assets --jq '.url, (.assets[] | "\(.name) \(.size) bytes")'

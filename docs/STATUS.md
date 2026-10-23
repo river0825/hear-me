@@ -2,7 +2,7 @@
 
 原名〈說寫〉（shuoxie），CEO 10-23 15:5x 指示改名 Hear Me 並放上 GitHub：https://github.com/river0825/hear-me（私人）。
 
-最後更新：2026-10-23 16:16（第四輪：CEO 真實環境通過、雙語自動偵測、標點清理、自簽憑證）
+最後更新：2026-10-23 17:20（第五輪：GitHub Actions CI/CD，v0.1.0 由 CI 打包發布）
 
 ## 是什麼
 CEO 10-23 直接交辦：「參考 Typeless 的功能，寫一個可以語音輸入的軟體」。
@@ -92,6 +92,24 @@ CEO 的 Mac（macOS 26.6.2、Apple Silicon、Apple Intelligence 未開）用選�
 ## 10-23 第三輪：更正記憶（CEO 提議「圈選錯的、輸入正確的，以後記住」）
 辨識準確率三層：(1) 辨識前偏好＝個人字典→contextual strings（已有，只能偏向）；(2) 辨識後確定性更正＝這輪做的；(3) Apple 自訂語言模型（`SFCustomLanguageModelData`）只接在舊式 `DictationTranscriber`，新的 `SpeechTranscriber` 沒有這個口，沒做。
 做法改成「貼上之後」更正而不是聽寫中：HUD 收音中不接滑鼠。安全規則：中文 1 個字、英文 2 個字母以內的片段不記（全域替換會誤傷）；差異比對時英數字擴到整個單字、中文往左補到 3 個字。
+
+## CI/CD（GitHub Actions，10-23 第五輪）
+
+| 工作流程 | 觸發 | runner／工具 | 做什麼 |
+|---|---|---|---|
+| `.github/workflows/ci.yml` | push `main`、pull_request | `macos-26`（GitHub 託管 arm64 映像 `macos-26-arm64`，macOS 26.6.2）；`sudo xcode-select -s /Applications/Xcode_26.6.app`（Xcode 26.6 / Swift 6.3.3 / macOS 26.5 SDK） | `swift build`、`swift test` |
+| `.github/workflows/release.yml` | push `v*` tag；手動 workflow_dispatch（只出 artifact、不建 release） | 同上 | 匯入自簽身分 → `scripts/bundle.sh` → `codesign -dv --verbose=2`／`-d -r-`／`--verify --strict` 印進 log → `ditto -c -k --keepParent` 成 `build/HearMe.zip` + sha256 → 上傳 artifact `HearMe-<tag>` → `gh release create <tag>` 附 zip 與 sha256，notes＝上個 tag 以來的 commit 清單 + GitHub 自動產生的 |
+
+- **簽章身分**：release 從 repo secret `HEARME_SIGN_P12_BASE64`（「HearMe Dev」p12 的 base64）與 `HEARME_SIGN_P12_PASSWORD` 匯進 runner 的 `~/Library/Keychains/hearme-dev.keychain-db`（與 `bundle.sh` 找的路徑相同），再用 `Resources/HearMeDev.cer.pem` 加進系統信任；secret 不在時印 warning、退回 ad-hoc。p12 與私鑰不進 repo；遺失就重做一把、重設 secret、重勾一次權限。
+- **版本號**：`bundle.sh` 讀 `HEARME_VERSION`（tag 去掉 v）與 `HEARME_BUILD`（run number）寫進 Info.plist；本機跑不帶這兩個變數就維持 `Resources/Info.plist` 的值。
+- **怎麼發版**：`git tag v0.1.2 && git push origin v0.1.2`。約 1–2 分鐘後 zip 在 `https://github.com/river0825/hear-me/releases/tag/v0.1.2`，同一份也在該 run 的 Artifacts。tag 已有 release 時改為覆蓋上傳資產。
+- **證據（v0.1.0，10-23 17:1x）**：
+  - CI run #1 綠：https://github.com/river0825/hear-me/actions/runs/39930719474 — build 11 秒、23/23 XCTest 過、整個 job 31 秒。
+  - Release run #1 綠：https://github.com/river0825/hear-me/actions/runs/39930875737 — log 印出 `1 valid identities found`、`Authority=HearMe Dev`、`designated => identifier "xyz.riverdm.hearme" and certificate leaf = H"9b1df6796456df0b21c86d051fea503f6454b077"`、`satisfies its Designated Requirement`、Info.plist 0.1.0。
+  - Release：https://github.com/river0825/hear-me/releases/tag/v0.1.0 — `HearMe.zip` 1,426,761 bytes，sha256 `f234bb6b…0fb771e2`。
+  - 下載回這台 Mac 解開比對：sha256 與 log 一致；`codesign -d -r-` 的指定需求與本機 `bundle.sh` 產的**完全相同**，`codesign --verify --strict` 過。對 TCC 來說 CI 打包＝本機打包，權限不用重勾（前提仍是 S-1：TCC 接受自簽憑證還沒在 CEO 那台驗）。
+- **為什麼選 `macos-26`**：這個 app 要 macOS 26 SDK 才編得過、測試包要 macOS 26+ 才載得起來；`macos-26` 是目前唯一兩者都行的 GA 映像（`macos-15` 跑不了測試包；`xcode-27` 映像是 macOS 27.0.1 + Xcode 27.0，還是 preview）。GitHub 會隨時間替換映像裡的 Xcode patch 版，`XCODE_APP` 找不到時改成 [macos-26-arm64 readme](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md) 列的版本。
+- **費用**：私人 repo 的 GitHub 託管 macOS runner 計入付費分鐘（macOS 以 10 倍計），目前每次 run 約 1 分鐘；用量看 GitHub Settings → Billing。超出免費額度前列待裁決。
 
 ## 已知限制與下一輪候選
 - 辨識綁單一語言；中英夾雜在 zh_TW 模式下英文單字可以，但整句英文會變亂碼。自動偵測要跑兩個 transcriber 或先用 `SpeechDetector`，下一輪再說。
