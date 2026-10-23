@@ -135,21 +135,14 @@ CEO 說「這首歌的背景是什麼」，HUD 正確，貼上的卻是模型的
 ## 10-23 第八輪：icon 定案 B、v0.1.6
 CEO 看過三張候選選 B，`make-icon.sh` 預設改成 B，tag v0.1.6（Release 由 CI 出，croc 碼不變）。CEO 回報 Apple Intelligence 已設定好。
 
+## 10-23 第九輪：MIT 授權、GitHub 自動更新（CEO 核准連 GitHub）
+- `LICENSE` MIT（S-3 結案）。
+- `Core/Updater.swift`：啟動 15 秒後與每 6 小時匿名打 `api.github.com/repos/river0825/hear-me/releases/latest`（設定「自動檢查更新」可關，預設開）。有新版 → 選單最上面「有新版本 vX，下載並安裝…」；按下後：下載 CI 出的 `HearMe.zip`＋`.sha256` → 比對 sha256 → `ditto` 解開、去隔離屬性 → 用 Security framework 檢查新 bundle **滿足正在跑的 app 的指定需求**（`identifier "xyz.riverdm.hearme" and certificate leaf = H"9b1d…b077"`）→ 舊 bundle 移到一旁再丟垃圾桶、新 bundle 放原路徑 → 用 `/bin/sh` 等舊程序退出後 `open` 新的。選單另有「檢查更新…」。CLI：`--check-update`、`--update --target <HearMe.app>`；GUI 無頭測試用 `HEARME_UPDATE_NOW=1`。
+- 證據 `docs/evidence/run-update.txt`（這台 Mac 真跑）：(1) CLI 把本機打的 0.1.5 從 GitHub 更新到 v0.1.6，3.6 秒，`codesign --verify --strict` 過；(2) 反向：目標是 ad-hoc 簽的 → 簽章檢查失敗（-67050）、目標不動；(3) GUI：0.1.5 啟動 → 6 秒內下載、驗章、換掉、重啟，log 看到 `launched 0.1.6`，`lsof` 確認新程序跑的是 ~/Applications 裡換過的檔。
+- 限制：app 要放在使用者寫得到的資料夾（應用程式或 ~/Applications 都可）；App Translocation（隔離路徑）下會拒絕並提示先移到應用程式；ad-hoc 簽的開發版不會自動更新（本機 `bundle.sh` 有 keychain 時都是 HearMe Dev 簽，沒問題）。
+- **CEO 這次還是要用 croc 裝一次 v0.1.7**（第一個含更新器的版本），之後就從選單更新。沒驗的：CEO 那台的 TCC 在更新後是否仍 `ax=true`（簽章相同、路徑相同，理論上會）。
+
 ## 待裁決
-- **S-3. 開源授權條款**（公開 repo 目前沒有 LICENSE；法律文件，CEO 決定）。選項：
-  | 條款 | 別人可以 | 我們保留 | 適合 |
-  |---|---|---|---|
-  | MIT | 隨意用、改、賣，只要留著版權聲明 | 幾乎沒有 | 作品集、想被最多人用 |
-  | Apache-2.0 | 同 MIT，多了明示專利授權、改過的檔要註明 | 專利防護 | 想讓公司放心採用 |
-  | MPL-2.0 | 用、改；**改到的檔案**要開源，可和閉源碼混用 | 檔案層級的回饋 | 折衷 |
-  | GPL-3.0 | 用、改；**整個衍生程式**要開源 | 防止被拿去做閉源收費版 | 怕被 Typeless 類產品抄走 |
-  | AGPL-3.0 | 同 GPL，連只透過網路提供服務也要開源 | 最強 | 這個 app 不連網，與 GPL 無差 |
-  | 不放 LICENSE | 只能看，法律上不能用也不能改 | 全部 | 只想公開給人看 |
-  建議：POC 階段放 **MIT**（最簡單、差異化在「不連外」不在程式碼本身）；若在意被做成閉源收費版就 **GPL-3.0**。選定後我加 `LICENSE` 檔並在 README 標示。
-- **S-4. 要不要做 GitHub 自動更新？**（CEO 10-23 問）。會碰到產品規則「全程不連外」，所以列裁決。兩條路：
-  1. **自製最小更新器（建議）**：啟動時與每幾小時打一次 `api.github.com/repos/river0825/hear-me/releases/latest`（匿名、不帶任何使用者資料），版本比 app 新就在選單多一項「有新版本 vX，下載並安裝…」；按了抓 CI 已經在出的 `HearMe.zip`＋`.sha256`，比對 sha256、`codesign --verify`、檢查簽章憑證指紋與正在跑的 app **相同**（擋掉假檔），換掉 `/Applications/HearMe.app` 後重新啟動。URLSession 下載的檔不會被打上隔離屬性，所以自簽身分不會跳 Gatekeeper；簽章不變，權限不用重勾。沒有新依賴，估半天。設定頁放「自動檢查更新」開關。
-  2. **Sparkle 框架**：業界標準，含差異更新、介面、EdDSA 簽章；但要加 runtime 依賴（違反規則）、`bundle.sh` 要自己嵌框架並簽，appcast.xml 要多一條 CI 步驟。等 1 不夠用再換。
-  CEO 要點頭的只有一件：允許 app 為了「檢查更新」連 GitHub（可關）。點頭後我做 1；croc 只剩第一次安裝要用。
 - **S-1. 要不要簽開發憑證？** 10-23 第四輪改用自簽身分先解（見上）；若 CEO 那台重打包後仍要重勾，再回來談 Apple Development 憑證。
 - **S-2. 這個 POC 要不要進點子漏斗走產品長審？** 目前是 CEO 直接交辦，沒有提案書；市場上 Typeless、Wispr Flow、superwhisper 已經很擠，差異化只有「完全不連外、免費」。
 

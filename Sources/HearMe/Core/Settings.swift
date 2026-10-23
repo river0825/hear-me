@@ -121,6 +121,8 @@ final class Settings: ObservableObject {
     @Published var restoreClipboard: Bool { didSet { save() } }
     /// Fuzzy-repair English words against the built-in developer vocabulary + dictionary, and add 盤古之白.
     @Published var devVocabulary: Bool { didSet { save() } }
+    /// Ask GitHub for the latest Release on launch and every few hours (no user data is sent).
+    @Published var autoCheckUpdates: Bool { didSet { save() } }
     @Published var dictionary: [String] { didSet { save() } }
     @Published var appTones: [AppToneRule] { didSet { save() } }
 
@@ -134,6 +136,7 @@ final class Settings: ObservableObject {
         outputLanguage = OutputLanguage(rawValue: defaults.string(forKey: "outputLanguage") ?? "") ?? .same
         restoreClipboard = defaults.object(forKey: "restoreClipboard") as? Bool ?? true
         devVocabulary = defaults.object(forKey: "devVocabulary") as? Bool ?? true
+        autoCheckUpdates = defaults.object(forKey: "autoCheckUpdates") as? Bool ?? true
         dictionary = defaults.stringArray(forKey: "dictionary") ?? []
         if let data = defaults.data(forKey: "appTones"), let rules = try? JSONDecoder().decode([AppToneRule].self, from: data) {
             appTones = rules
@@ -158,6 +161,7 @@ final class Settings: ObservableObject {
         defaults.set(outputLanguage.rawValue, forKey: "outputLanguage")
         defaults.set(restoreClipboard, forKey: "restoreClipboard")
         defaults.set(devVocabulary, forKey: "devVocabulary")
+        defaults.set(autoCheckUpdates, forKey: "autoCheckUpdates")
         defaults.set(dictionary, forKey: "dictionary")
         defaults.set(try? JSONEncoder().encode(appTones), forKey: "appTones")
     }

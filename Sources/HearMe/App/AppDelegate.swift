@@ -13,6 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let correctionWindow = CorrectionWindowController()
     private var cancellables = Set<AnyCancellable>()
     private var hideTimer: Timer?
+    private var availableUpdate: ReleaseInfo?
+    private var updateStatus: String?   // non-nil while an install is running
+    private var updateTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -23,6 +26,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupHotkey()
         warmUp()
         Log.info("launched \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") on \(ProcessInfo.processInfo.operatingSystemVersionString); ax=\(Permissions.accessibilityTrusted(prompt: false)) mic=\(Permissions.microphoneStatus) model=\(Polisher.availability)")
+        scheduleUpdateChecks()
+        if ProcessInfo.processInfo.environment["HEARME_UPDATE_NOW"] == "1" {
+            // Headless end-to-end test of the updater (check → download → verify → swap → relaunch).
+            Task { await checkForUpdate(interactive: false); if availableUpdate != nil { installUpdate() } }
+        }
         if ProcessInfo.processInfo.environment["HEARME_DEMO"] == "1" {
             // Used to screenshot the HUD on a machine without a microphone.
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in pipeline.start(mode: .dictate) }
@@ -56,6 +64,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func rebuildMenu() {
         let menu = NSMenu()
+        if let status = updateStatus {
+            let item = NSMenuItem(title: "更新中：\(status)", action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            menu.addItem(item)
+            menu.addItem(.separator())
+        } else if let update = availableUpdate {
+            let item = NSMenuItem(title: "有新版本 \(update.tag)，下載並安裝…", action: #selector(installUpdateClicked), keyEquivalent: "")
+            item.image = NSImage(systemSymbolName: "arrow.down.circle.fill", accessibilityDescription: nil)
+            menu.addItem(item)
+            menu.addItem(.separator())
+        }
         let stateItem = NSMenuItem(title: stateLabel(), action: nil, keyEquivalent: "")
         stateItem.isEnabled = false
         menu.addItem(stateItem)
@@ -112,6 +131,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "設定…", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "檢查權限…", action: #selector(checkPermissions), keyEquivalent: ""))
+        if Updater.installedAppURL != nil, updateStatus == nil, availableUpdate == nil {
+            menu.addItem(NSMenuItem(title: "檢查更新…", action: #selector(checkUpdateClicked), keyEquivalent: ""))
+        }
         menu.addItem(NSMenuItem(title: "顯示 log 檔", action: #selector(showLog), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "結束 Hear Me", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
@@ -232,6 +254,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             Log.info("learned from selection: \(learned.joined(separator: ", "))")
             alert(learned.isEmpty ? "差異太短，沒有記住。" : "記住了 \(learned.count) 個更正：\n" + learned.joined(separator: "\n"))
+        }
+    }
+
+    // MARK: updates
+
+    private func scheduleUpdateChecks() {
+        guard Updater.installedAppURL != nil, Updater.currentVersion != nil else { return }
+        let fire = { [weak self] in
+            guard let self, self.settings.autoCheckUpdates, self.updateStatus == nil else { return }
+            Task { await self.checkForUpdate(interactive: false) }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) { fire() }
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { _ in DispatchQueue.main.async { fire() } }
+    }
+
+    private func checkForUpdate(interactive: Bool) async {
+        do {
+            let found = try await Updater.check()
+            availableUpdate = found
+            rebuildMenu()
+            if interactive, found == nil {
+                alert("已是最新版本 \(Updater.currentVersion?.description ?? "")。")
+            }
+        } catch {
+            Log.warn("update: check failed: \(error.localizedDescription)")
+            if interactive { alert("檢查更新失敗：\(error.localizedDescription)") }
+        }
+    }
+
+    @objc private func checkUpdateClicked() { Task { await checkForUpdate(interactive: true) } }
+
+    @objc private func installUpdateClicked() { installUpdate() }
+
+    private func installUpdate() {
+        guard let release = availableUpdate, updateStatus == nil else { return }
+        if pipeline.isListening { pipeline.cancel() }
+        updateStatus = "準備中…"
+        rebuildMenu()
+        Task {
+            do {
+                let target = try await Updater.install(release) { [weak self] s in
+                    DispatchQueue.main.async { self?.updateStatus = s; self?.rebuildMenu() }
+                }
+                Log.info("update: relaunching \(release.tag)")
+                Updater.relaunchAfterExit(target)
+                NSApp.terminate(nil)
+            } catch {
+                Log.warn("update: install failed: \(error.localizedDescription)")
+                updateStatus = nil
+                rebuildMenu()
+                alert("更新失敗：\(error.localizedDescription)\n可以到 \(release.pageURL.absoluteString) 手動下載。")
+            }
         }
     }
 

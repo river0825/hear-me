@@ -1,0 +1,43 @@
+# 2026-10-23 21:30 自動更新：本機打 0.1.5（HearMe Dev 簽）放 ~/Applications，用 CLI 從 GitHub Release 更新到最新版
+$ HEARME_VERSION=0.1.5 scripts/bundle.sh && rm -rf ~/Applications/HearMe.app && cp -R build/HearMe.app ~/Applications/
+built: /Users/riverlin/Documents/side-projects/hearme/build/HearMe.app
+$ codesign -d -r- ~/Applications/HearMe.app
+designated => identifier "xyz.riverdm.hearme" and certificate leaf = H"9b1df6796456df0b21c86d051fea503f6454b077"
+$ HearMe --update --target ~/Applications/HearMe.app
+target: /Users/riverlin/Applications/HearMe.app version: 0.1.5 latest: v0.1.6
+  下載 v0.1.6…
+  驗證簽章…
+  安裝…
+installed v0.1.6 → Info.plist says 0.1.6 (3.6s)
+$ PlistBuddy Print :CFBundleShortVersionString; codesign --verify --strict
+0.1.6
+/Users/riverlin/Applications/HearMe.app: valid on disk
+/Users/riverlin/Applications/HearMe.app: satisfies its Designated Requirement
+$ tail HearMe.log (update lines)
+2026-10-23 21:30:54.425 update: sha256 ok 6261f34210a9fd76aac27f9333bb7b5306780fc44b791cd726b1a6ac817743ff
+2026-10-23 21:30:54.461 update: new bundle satisfies designated requirement [identifier "xyz.riverdm.hearme" and certificate leaf = H"9b1df6796456df0b21c86d051fea503f6454b077"]
+2026-10-23 21:30:54.498 update: installed v0.1.6 at /Users/riverlin/Applications/HearMe.app
+
+## 反向案例：目標是 ad-hoc 簽的（指定需求含 cdhash），新版簽章對不上 → 必須拒絕、不動目標
+build/HearMe-adhoc.app: replacing existing signature
+$ HearMe --update --target build/HearMe-adhoc.app
+  target: /Users/riverlin/Documents/side-projects/hearme/build/HearMe-adhoc.app version: 0.1.5 latest: v0.1.6
+    下載 v0.1.6…
+    驗證簽章…
+  [hearme] update: signature check failed against [cdhash H"cbf4e1285d295c3907c400d5cd5fe623e27943a7"]: Error Domain=NSOSStatusErrorDomain Code=-67050 "(null)" UserInfo={SecCSArchitecture=arm64}
+  error: signature("Error Domain=NSOSStatusErrorDomain Code=-67050 \"(null)\" UserInfo={SecCSArchitecture=arm64}")
+exit=0 ; target version after: 0.1.5
+
+## GUI 路徑：~/Applications 放 0.1.5（含更新器），用 HEARME_UPDATE_NOW=1 啟動 → 選單「下載並安裝」同一條程式路徑 → 換掉後自動重啟
+$ HEARME_UPDATE_NOW=1 ~/Applications/HearMe.app/Contents/MacOS/HearMe
+2026-10-23 21:31:23.570 launched 0.1.5 on 版本27.0（版號26A428）; ax=false mic=尚未詢問 model=不可用：modelNotReady
+2026-10-23 21:31:24.115 update: latest v0.1.6, current 0.1.5
+2026-10-23 21:31:29.636 update: sha256 ok 6261f34210a9fd76aac27f9333bb7b5306780fc44b791cd726b1a6ac817743ff
+2026-10-23 21:31:29.657 update: new bundle satisfies designated requirement [identifier "xyz.riverdm.hearme" and certificate leaf = H"9b1df6796456df0b21c86d051fea503f6454b077"]
+2026-10-23 21:31:29.685 update: installed v0.1.6 at /Users/riverlin/Applications/HearMe.app
+2026-10-23 21:31:29.685 update: relaunching v0.1.6
+2026-10-23 21:31:29.686 update: relaunch helper started for /Users/riverlin/Applications/HearMe.app
+2026-10-23 21:31:30.139 launched 0.1.6 on 版本27.0（版號26A428）; ax=false mic=尚未詢問 model=不可用：modelNotReady
+$ pgrep -lx HearMe; lsof → 新程序跑的是哪個檔
+33130 HearMe
+/Users/riverlin/Applications/HearMe.app/Contents/MacOS/HearMe

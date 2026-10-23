@@ -4,7 +4,9 @@ POC：macOS 選單列語音輸入，對標 Typeless（按住快捷鍵說話、�
 狀態與證據：`docs/STATUS.md`。公司層規範在 `../CLAUDE.md`。
 
 ## 規則
-- **全程裝置端，不連外**：辨識用 Apple `SpeechAnalyzer`／`SpeechTranscriber`（macOS 26+），整理用 Apple `FoundationModels` 裝置端模型。不要加任何雲端 API、不要加 runtime 依賴；需要時列進 STATUS 待裁決。
+- **全程裝置端，不連外**：辨識用 Apple `SpeechAnalyzer`／`SpeechTranscriber`（macOS 26+），整理用 Apple `FoundationModels` 裝置端模型。不要加任何雲端 API、不要加 runtime 依賴；需要時列進 STATUS 待裁決。唯一例外（CEO 2026-10-23 核准）：`Core/Updater.swift` 向 GitHub Releases API 查最新版、下載 `HearMe.zip`，不帶任何使用者資料，設定可關。
+- 自動更新的安全線不能放寬：下載檔要過 Release 附的 sha256，且新 bundle 必須滿足**正在跑的 app 的指定需求**（同 identifier＋同「HearMe Dev」憑證），ad-hoc 簽的 build 不能自動更新。所以自簽身分（p12 在 GitHub secrets）不能換，換了舊版就更新不上來。
+- 授權 MIT（`LICENSE`，CEO 2026-10-23 選定）。
 - 純 SwiftPM（`Package.swift`），沒有 Xcode 專案。`swift build`、`swift test`、`scripts/bundle.sh` 產 `build/HearMe.app`，用 `~/Library/Keychains/hearme-dev.keychain-db` 裡的自簽身分「HearMe Dev」簽（讓權限不用每次重勾）；那個 keychain 不在時退回 ad-hoc。`scripts/send.sh` 用固定 croc 碼傳給 CEO。
 - 這台開發機沒有麥克風，也沒給終端機輔助使用權限：聽寫 pipeline 用 `scripts/make-test-audio.sh` 產的音檔走 `HearMe --transcribe` 測；真實收音、快捷鍵、貼上要 CEO 在有麥克風的機器上驗，沒驗過的不能寫成已完成。
 - 改提示詞（`Core/Polisher.swift`）後重跑 `docs/evidence/` 的五個案例並更新 `run-*.txt`；改口、條列、字典、英文不翻譯、翻譯這五件事都要仍然對。

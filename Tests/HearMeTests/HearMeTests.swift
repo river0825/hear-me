@@ -236,3 +236,40 @@ final class DevVocabularyTests: XCTestCase {
         XCTAssertEqual(TextRules.spaceBetweenHanAndLatin("已經是 GitHub 了"), "已經是 GitHub 了")
     }
 }
+
+final class UpdaterTests: XCTestCase {
+    func testVersionParseAndCompare() {
+        XCTAssertEqual(AppVersion("v0.1.7")!.parts, [0, 1, 7])
+        XCTAssertEqual(AppVersion("1.2")!.description, "1.2")
+        XCTAssertNil(AppVersion("abc"))
+        XCTAssertNil(AppVersion(""))
+        XCTAssertTrue(AppVersion("0.1.6")! < AppVersion("v0.1.7")!)
+        XCTAssertTrue(AppVersion("0.1.9")! < AppVersion("0.2")!)
+        XCTAssertFalse(AppVersion("0.2.0")! < AppVersion("0.2")!)
+        XCTAssertTrue(AppVersion("0.2.0")! == AppVersion("0.2")!)
+        XCTAssertTrue(AppVersion("0.1.10")! > AppVersion("0.1.9")!)
+    }
+
+    func testParseLatestRelease() throws {
+        let json = """
+        {"tag_name":"v0.1.7","html_url":"https://github.com/river0825/hear-me/releases/tag/v0.1.7",
+         "assets":[{"name":"HearMe.zip.sha256","browser_download_url":"https://x/HearMe.zip.sha256"},
+                   {"name":"HearMe.zip","browser_download_url":"https://x/HearMe.zip"}]}
+        """
+        let r = try ReleaseInfo.parse(Data(json.utf8))
+        XCTAssertEqual(r.tag, "v0.1.7")
+        XCTAssertEqual(r.version, AppVersion("0.1.7")!)
+        XCTAssertEqual(r.zipURL.absoluteString, "https://x/HearMe.zip")
+        XCTAssertEqual(r.shaURL?.absoluteString, "https://x/HearMe.zip.sha256")
+        XCTAssertEqual(r.pageURL.absoluteString, "https://github.com/river0825/hear-me/releases/tag/v0.1.7")
+        XCTAssertThrowsError(try ReleaseInfo.parse(Data(#"{"tag_name":"v1.0.0","assets":[]}"#.utf8)))
+        XCTAssertThrowsError(try ReleaseInfo.parse(Data(#"{"message":"Not Found"}"#.utf8)))
+    }
+
+    func testSha256Parsing() throws {
+        let hex = String(repeating: "ab", count: 32)
+        XCTAssertEqual(try Updater.parseSha256("\(hex.uppercased())  build/HearMe.zip\n"), hex)
+        XCTAssertThrowsError(try Updater.parseSha256("not a hash  HearMe.zip"))
+        XCTAssertEqual(Updater.sha256Hex(Data("abc".utf8)), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+    }
+}

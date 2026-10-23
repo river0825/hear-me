@@ -82,6 +82,10 @@ struct SettingsView: View {
                     Button("在 Finder 顯示") { NSWorkspace.shared.activateFileViewerSelecting([History.shared.url]) }
                 }
             }
+            Section("更新") {
+                Toggle("自動檢查更新（只向 GitHub 查最新版本號，不送任何資料）", isOn: $settings.autoCheckUpdates)
+                Text("目前版本 \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "開發版")；更新檔來自 github.com/\(Updater.repo) 的 Release，安裝前會核對 sha256 與簽章。").font(.caption).foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .frame(width: 620, height: 720)

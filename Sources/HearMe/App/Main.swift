@@ -44,6 +44,8 @@ enum CLI {
         HearMe --learn-diff "<上次貼上的>" "<改對的>"          從兩段文字的差異學更正
         HearMe --corrections                               列出記住的更正
         HearMe --doctor                                   列出權限與模型狀態
+        HearMe --check-update                             問 GitHub 最新 Release，跟目前版本比
+        HearMe --update --target <HearMe.app>             下載最新 Release、核對 sha256 與簽章後換掉 <HearMe.app>
         HearMe --render-ui <dir>                          把 HUD 各狀態與設定頁離屏畫成 PNG
         """
     }
@@ -100,6 +102,23 @@ enum CLI {
                 } else if args.contains("--corrections") {
                     for c in store.items { print("\(c.wrong) → \(c.right)  ×\(c.count)") }
                     print("(\(store.items.count) corrections in \(store.url.path))")
+                } else if args.contains("--check-update") {
+                    let latest = try await Updater.fetchLatest()
+                    let current = Updater.currentVersion
+                    print("current:", current?.description ?? "dev (not an app bundle)")
+                    print("latest:", latest.tag, latest.zipURL.absoluteString, "sha256:", latest.shaURL != nil)
+                    if let current { print(current < latest.version ? "update available" : "up to date") }
+                } else if args.contains("--update") {
+                    guard let targetPath = value("--target", in: args) else { print("用法：--update --target <HearMe.app>"); code = 2; return }
+                    let target = URL(fileURLWithPath: targetPath)
+                    let installedVersion = (NSDictionary(contentsOf: target.appendingPathComponent("Contents/Info.plist"))?["CFBundleShortVersionString"] as? String).flatMap(AppVersion.init)
+                    let latest = try await Updater.fetchLatest()
+                    print("target:", target.path, "version:", installedVersion?.description ?? "?", "latest:", latest.tag)
+                    if let installedVersion, !(installedVersion < latest.version), !args.contains("--force") { print("up to date"); return }
+                    let t = Date()
+                    try await Updater.install(latest, over: target) { print("  \($0)") }
+                    let after = NSDictionary(contentsOf: target.appendingPathComponent("Contents/Info.plist"))?["CFBundleShortVersionString"] as? String ?? "?"
+                    print("installed \(latest.tag) → Info.plist says \(after) (\(String(format: "%.1f", Date().timeIntervalSince(t)))s)")
                 } else if args.contains("--doctor") {
                     print("macOS:", ProcessInfo.processInfo.operatingSystemVersionString)
                     print("accessibility:", Permissions.accessibilityTrusted(prompt: false))
