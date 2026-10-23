@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let hotkey = HotkeyMonitor()
     private var ptt = PushToTalkMachine()
     private let settingsWindow = SettingsWindowController()
+    private let correctionWindow = CorrectionWindowController()
     private var cancellables = Set<AnyCancellable>()
     private var hideTimer: Timer?
 
@@ -106,6 +107,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(recentItem)
         }
 
+        menu.addItem(NSMenuItem(title: "更正上一次聽寫…", action: #selector(openCorrections), keyEquivalent: "e"))
+        menu.addItem(NSMenuItem(title: "從選取文字學習（跟上一次貼上的比對）", action: #selector(learnFromSelection), keyEquivalent: "l"))
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "設定…", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "檢查權限…", action: #selector(checkPermissions), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "顯示 log 檔", action: #selector(showLog), keyEquivalent: ""))
@@ -206,6 +210,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSPasteboard.general.setString(text, forType: .string)
     }
     @objc private func openSettings() { settingsWindow.show(settings: settings) }
+
+    @objc private func openCorrections() {
+        let last = History.shared.recent(1).first?.raw ?? ""
+        correctionWindow.show(store: CorrectionStore.shared, settings: settings, lastRaw: last)
+    }
+
+    /// The user fixed the pasted text in place and selected it: diff against what we pasted and remember the changes.
+    @objc private func learnFromSelection() {
+        Task { @MainActor in
+            guard let last = History.shared.recent(1).first else { return alert("還沒有聽寫記錄可以比對。") }
+            guard let selected = await TextInjector.copySelection(), !selected.isEmpty else {
+                return alert("沒有抓到選取的文字。先在原本的 app 裡把貼上的句子改對、選起來，再選這個指令。")
+            }
+            let reps = TextDiff.replacements(old: last.output, new: selected)
+            guard !reps.isEmpty else { return alert("選取的文字跟上一次貼上的沒有可以學的差異（可能只是刪字或加字）。") }
+            var learned: [String] = []
+            for r in reps.prefix(5) where CorrectionStore.shared.learn(wrong: r.wrong, right: r.right) {
+                learned.append("「\(r.wrong)」→「\(r.right)」")
+                if !settings.dictionary.contains(r.right) { settings.dictionary.append(r.right) }
+            }
+            Log.info("learned from selection: \(learned.joined(separator: ", "))")
+            alert(learned.isEmpty ? "差異太短，沒有記住。" : "記住了 \(learned.count) 個更正：\n" + learned.joined(separator: "\n"))
+        }
+    }
+
+    private func alert(_ text: String) {
+        let a = NSAlert(); a.messageText = "Hear Me"; a.informativeText = text
+        NSApp.activate(); a.runModal()
+    }
 
     @objc private func checkPermissions() {
         let ax = Permissions.accessibilityTrusted(prompt: false)

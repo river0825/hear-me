@@ -8,5 +8,6 @@ POC：macOS 選單列語音輸入，對標 Typeless（按住快捷鍵說話、�
 - 純 SwiftPM（`Package.swift`），沒有 Xcode 專案。`swift build`、`swift test`、`scripts/bundle.sh` 產 `build/HearMe.app`（ad-hoc 簽名；每次重打包後「輔助使用」權限要重新勾）。
 - 這台開發機沒有麥克風，也沒給終端機輔助使用權限：聽寫 pipeline 用 `scripts/make-test-audio.sh` 產的音檔走 `HearMe --transcribe` 測；真實收音、快捷鍵、貼上要 CEO 在有麥克風的機器上驗，沒驗過的不能寫成已完成。
 - 改提示詞（`Core/Polisher.swift`）後重跑 `docs/evidence/` 的五個案例並更新 `run-*.txt`；改口、條列、字典、英文不翻譯、翻譯這五件事都要仍然對。
-- 使用者資料只在本機：記錄檔在 `~/Library/Application Support/HearMe/history.jsonl`，不上傳、不收集。
+- 使用者資料只在本機：記錄檔 `~/Library/Application Support/HearMe/history.jsonl`、更正記憶 `corrections.json`，不上傳、不收集。更正記憶的安全規則（中文 1 字、英文 2 字母以內不記）在 `Core/Corrections.swift`，不要放寬。
+- 遠端 repo 在 GitHub：https://github.com/river0825/hear-me（私人）。push 到 main 不會觸發部署，屬自主動作。
 - 與 CEO 溝通用台灣正體中文；程式識別字與註解用英文。

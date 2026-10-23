@@ -27,6 +27,11 @@ enum TextRules {
         var s = output.trimmingCharacters(in: .whitespacesAndNewlines)
         let labels = ["整理後：", "整理後的文字：", "結果：", "輸出：", "Result:", "Output:"]
         for l in labels where s.hasPrefix(l) { s = String(s.dropFirst(l.count)).trimmingCharacters(in: .whitespaces) }
+        // Small on-device models sometimes echo an instruction line back; drop those lines.
+        let echoMarkers = ["以前辨識錯過", "使用者更正過", "個人字典：", "Past recognition errors", "Personal dictionary:", "只輸出整理後"]
+        s = s.split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { line in !echoMarkers.contains { line.contains($0) } }
+            .joined(separator: "\n")
         let pairs: [(String, String)] = [("「", "」"), ("“", "”"), ("\"", "\""), ("『", "』")]
         for (o, c) in pairs where s.hasPrefix(o) && s.hasSuffix(c) && s.count > 2 && !s.dropFirst().dropLast().contains(c) {
             s = String(s.dropFirst().dropLast())

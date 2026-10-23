@@ -57,6 +57,11 @@ final class TextRulesTests: XCTestCase {
         XCTAssertEqual(TextRules.postProcess("他說「好」，然後走了。"), "他說「好」，然後走了。")
     }
 
+    func testPostProcessDropsEchoedInstructions() {
+        let out = TextRules.postProcess("請協助匯出記錄。  \n以前辨識錯過、使用者更正過的寫法：登入業→登入頁。相同者請改。")
+        XCTAssertEqual(out, "請協助匯出記錄。")
+    }
+
     func testJoiner() {
         XCTAssertEqual(TextRules.joiner(previousChar: "a", next: "hello"), " ")
         XCTAssertEqual(TextRules.joiner(previousChar: "。", next: "明天"), "")
@@ -105,5 +110,49 @@ final class PolisherPromptTests: XCTestCase {
         XCTAssertTrue(p.contains("正式"))
         XCTAssertTrue(p.contains("English"))
         XCTAssertTrue(p.contains("「Mail」"))
+    }
+}
+
+final class CorrectionTests: XCTestCase {
+    func testApplyLongestFirstAndSafety() {
+        let cs = [
+            Correction(wrong: "登入業", right: "登入頁"),
+            Correction(wrong: "登入業面", right: "登入畫面"),
+            Correction(wrong: "業", right: "頁"),            // unsafe single char: ignored
+            Correction(wrong: "Irannote", right: "IronNote"),
+        ]
+        let (out, used) = CorrectionRules.apply("更新登入業面和登入業，匯出 Irannote 的作業", corrections: cs)
+        XCTAssertEqual(out, "更新登入畫面和登入頁，匯出 IronNote 的作業")
+        XCTAssertEqual(used.count, 3)
+    }
+
+    func testDiffExtractsReplacementWithContext() {
+        let reps = TextDiff.replacements(old: "這次發版要做三件事第一更新登入業第二修掉閃退", new: "這次發版要做三件事第一更新登入頁第二修掉閃退")
+        XCTAssertEqual(reps, [TextDiff.Replacement(wrong: "登入業", right: "登入頁")])
+    }
+
+    func testDiffMultipleAndAscii() {
+        let reps = TextDiff.replacements(old: "請把 Irannote 的記錄繪出", new: "請把 IronNote 的記錄匯出")
+        XCTAssertEqual(reps.map(\.wrong), ["Irannote", "記錄繪"])
+        XCTAssertEqual(reps.map(\.right), ["IronNote", "記錄匯"])
+    }
+
+    func testDiffIgnoresPureInsertOrDelete() {
+        XCTAssertEqual(TextDiff.replacements(old: "明天開會", new: "明天下午開會"), [])
+        XCTAssertEqual(TextDiff.replacements(old: "嗯明天開會", new: "明天開會"), [])
+    }
+
+    func testStoreLearnMergesAndRejects() {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("hearme-corr-\(UUID()).json")
+        let s = CorrectionStore(url: url)
+        XCTAssertTrue(s.learn(wrong: "繪出", right: "匯出"))
+        XCTAssertTrue(s.learn(wrong: "繪出", right: "匯出"))
+        XCTAssertFalse(s.learn(wrong: "業", right: "頁"))
+        XCTAssertFalse(s.learn(wrong: "匯出", right: "匯出"))
+        XCTAssertEqual(s.items.count, 1)
+        XCTAssertEqual(s.items[0].count, 2)
+        let reloaded = CorrectionStore(url: url)
+        XCTAssertEqual(reloaded.items.map(\.wrong), ["繪出"])
+        try? FileManager.default.removeItem(at: url)
     }
 }

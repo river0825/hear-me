@@ -23,6 +23,12 @@ enum UIRender {
         }
         let settingsView = NSHostingView(rootView: SettingsView(settings: settings))
         written.append(try snapshot(settingsView, to: dir.appendingPathComponent("settings.png")))
+        let store = CorrectionStore(url: dir.appendingPathComponent("demo-corrections.json"))
+        store.learn(wrong: "登入業", right: "登入頁")
+        store.learn(wrong: "Irannote", right: "IronNote")
+        let correctionView = NSHostingView(rootView: CorrectionView(store: store, settings: settings, lastRaw: "請幫我把 Irannote 的訓練記錄繪出，然後傳到拆招的測試伺服器。"))
+        written.append(try snapshot(correctionView, to: dir.appendingPathComponent("corrections.png")))
+        try? FileManager.default.removeItem(at: dir.appendingPathComponent("demo-corrections.json"))
         return written
     }
 

@@ -40,6 +40,9 @@ enum CLI {
         HearMe --polish-text "<逐字稿>" [--tone …] [--lang …] [--dict …] [--app …]
         HearMe --command "<選取文字>" --say "<指令>"
         HearMe --simulate-live <audio> [--polish] [--verbose]   把音檔當麥克風串流走即時路徑
+        HearMe --learn "辨識錯的=正確的"                     記住一個更正（之後逐字稿先替換，也告訴整理模型）
+        HearMe --learn-diff "<上次貼上的>" "<改對的>"          從兩段文字的差異學更正
+        HearMe --corrections                               列出記住的更正
         HearMe --doctor                                   列出權限與模型狀態
         HearMe --render-ui <dir>                          把 HUD 各狀態與設定頁離屏畫成 PNG
         """
@@ -59,9 +62,15 @@ enum CLI {
         let lang = OutputLanguage(rawValue: value("--lang", in: args) ?? "") ?? .same
         let app = value("--app", in: args)
 
+        let store = CorrectionStore.shared
+        func applyCorrections(_ raw: String) -> String {
+            let (fixed, used) = store.apply(raw)
+            if !used.isEmpty { print("corrections applied: " + used.map { "\($0.wrong)→\($0.right)" }.joined(separator: ", ")) }
+            return fixed
+        }
         func polishAndPrint(raw: String) async {
             let t = Date()
-            let (out, used) = await Polisher.polish(PolishRequest(raw: raw, tone: tone, outputLanguage: lang, dictionary: dict, appName: app, speechLocale: locale))
+            let (out, used) = await Polisher.polish(PolishRequest(raw: raw, tone: tone, outputLanguage: lang, dictionary: dict, appName: app, speechLocale: locale, corrections: store.items))
             print("polished (\(used ? "on-device model" : "rules"), \(String(format: "%.2f", Date().timeIntervalSince(t)))s, tone=\(tone.rawValue), lang=\(lang.rawValue)):")
             print(out)
         }
@@ -72,7 +81,20 @@ enum CLI {
         Task {
             defer { finished = true }
             do {
-                if args.contains("--doctor") {
+                if let pair = value("--learn", in: args) {
+                    let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
+                    guard parts.count == 2 else { print("格式：--learn \"錯的=對的\""); code = 2; return }
+                    let ok = store.learn(wrong: parts[0], right: parts[1])
+                    print(ok ? "learned: \(parts[0]) → \(parts[1])" : "rejected (too short or identical): \(parts[0])")
+                    if !ok { code = 1 }
+                } else if let i = args.firstIndex(of: "--learn-diff"), i + 2 < args.count {
+                    let reps = TextDiff.replacements(old: args[i + 1], new: args[i + 2])
+                    for r in reps { print("diff: \(r.wrong) → \(r.right) \(store.learn(wrong: r.wrong, right: r.right) ? "(learned)" : "(rejected)")") }
+                    if reps.isEmpty { print("no learnable replacement") }
+                } else if args.contains("--corrections") {
+                    for c in store.items { print("\(c.wrong) → \(c.right)  ×\(c.count)") }
+                    print("(\(store.items.count) corrections in \(store.url.path))")
+                } else if args.contains("--doctor") {
                     print("macOS:", ProcessInfo.processInfo.operatingSystemVersionString)
                     print("accessibility:", Permissions.accessibilityTrusted(prompt: false))
                     print("microphone:", Permissions.microphoneStatus, "input device:", AudioCapture.hasInputDevice())
@@ -82,9 +104,10 @@ enum CLI {
                     print("log:", Log.fileURL.path)
                 } else if let path = value("--transcribe", in: args) {
                     let t = Date()
-                    let raw = try await Transcriber.transcribeFile(URL(fileURLWithPath: path), localeId: locale, contextualStrings: dict)
+                    var raw = try await Transcriber.transcribeFile(URL(fileURLWithPath: path), localeId: locale, contextualStrings: dict + store.rightSides)
                     print("transcript (\(locale), \(String(format: "%.2f", Date().timeIntervalSince(t)))s):")
                     print(raw)
+                    raw = applyCorrections(raw)
                     if args.contains("--polish") { await polishAndPrint(raw: raw) }
                 } else if let path = value("--simulate-live", in: args) {
                     // Push a file through the live (microphone) path in mic-sized chunks.
@@ -111,11 +134,12 @@ enum CLI {
                     print("fed \(fed) chunks, \(updates) live updates, finish took \(String(format: "%.2f", Date().timeIntervalSince(t1)))s\(raw == nil ? " (TIMEOUT)" : "")")
                     print("transcript:")
                     print(raw ?? t.currentText)
-                    if args.contains("--polish") { await polishAndPrint(raw: raw ?? t.currentText) }
+                    let fixed = applyCorrections(raw ?? t.currentText)
+                    if args.contains("--polish") { await polishAndPrint(raw: fixed) }
                 } else if let raw = value("--polish-text", in: args) {
                     print("raw:")
                     print(raw)
-                    await polishAndPrint(raw: raw)
+                    await polishAndPrint(raw: applyCorrections(raw))
                 } else if let selected = value("--command", in: args), let say = value("--say", in: args) {
                     let t = Date()
                     let out = try await Polisher.applyCommand(selected: selected, instruction: say, speechLocale: locale)

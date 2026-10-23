@@ -66,7 +66,8 @@ final class Pipeline: ObservableObject {
                     self?.finalText = f
                     self?.volatileText = v
                 }
-                let locale = settings.speechLocale, dict = settings.dictionary
+                let locale = settings.speechLocale
+                let dict = settings.dictionary + CorrectionStore.shared.rightSides
                 let started = await withTimeout(20) { () -> Error? in
                     do { try await t.start(localeId: locale, contextualStrings: dict); return nil } catch { return error }
                 }
@@ -108,20 +109,23 @@ final class Pipeline: ObservableObject {
             }
             capture.stop()
             let t0 = Date()
-            var raw = ""
+            var rawText = ""
             if let t = transcriber {
                 let finished = await withTimeout(8) { await t.finish() }
                 if let finished {
-                    raw = finished
+                    rawText = finished
                 } else {
                     Log.warn("finish timed out; using partial text")
-                    raw = t.currentText
+                    rawText = t.currentText
                     await t.cancel()
                 }
             }
             let transcribeSeconds = Date().timeIntervalSince(t0)
             transcriber = nil
-            Log.info("raw (\(String(format: "%.2f", transcribeSeconds))s, audio \(String(format: "%.1f", audioSeconds))s): \(raw)")
+            Log.info("raw (\(String(format: "%.2f", transcribeSeconds))s, audio \(String(format: "%.1f", audioSeconds))s): \(rawText)")
+            let (corrected, used) = CorrectionStore.shared.apply(rawText)
+            if !used.isEmpty { Log.info("applied corrections: " + used.map { "\($0.wrong)→\($0.right)" }.joined(separator: ", ")) }
+            let raw = corrected
             guard !raw.isEmpty else {
                 state = .error("沒聽到內容")
                 scheduleIdle(after: 1.5)
@@ -142,7 +146,7 @@ final class Pipeline: ObservableObject {
                 (output, _) = await Polisher.polish(PolishRequest(
                     raw: raw, tone: tone, outputLanguage: settings.outputLanguage,
                     dictionary: settings.dictionary, appName: targetApp?.localizedName,
-                    speechLocale: settings.speechLocale
+                    speechLocale: settings.speechLocale, corrections: CorrectionStore.shared.items
                 ))
             } else {
                 output = TextRules.basicCleanup(raw)

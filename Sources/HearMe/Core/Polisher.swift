@@ -8,6 +8,7 @@ struct PolishRequest {
     var dictionary: [String]
     var appName: String?
     var speechLocale: String
+    var corrections: [Correction] = []
 }
 
 /// Turns a raw transcript into text that reads as if it had been typed.
@@ -110,6 +111,9 @@ enum Polisher {
         if !terms.isEmpty {
             lines.append("9. The user's personal dictionary (names, products, terms): \(terms.joined(separator: ", ")). Replace similar-sounding words in the transcript with these spellings.")
         }
+        if !r.corrections.isEmpty {
+            lines.append("10. Past recognition errors the user corrected (wrong → right): " + r.corrections.prefix(30).map { "\($0.wrong) → \($0.right)" }.joined(separator: ", ") + ". Use the right-hand spelling for the same or similar-sounding words.")
+        }
         lines.append("")
         lines.append("Example (general tone, same language):")
         lines.append("Transcript: um so I think we should, uh, ship the login page first and then, you know, fix the crash")
@@ -123,7 +127,7 @@ enum Polisher {
     static let enCorrectionMarkers = [" no,", " no ", "i mean", "sorry,", "actually,", "correction"]
 
     /// The transcript plus a targeted reminder when it looks like the speaker corrected themselves.
-    static func userPrompt(raw: String, speechLocale: String, dictionary: [String] = []) -> String {
+    static func userPrompt(raw: String, speechLocale: String, dictionary: [String] = [], corrections: [Correction] = []) -> String {
         let terms = dictionary.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         if speechLocale.hasPrefix("zh") {
             var p = "逐字稿：\n\(raw)"
@@ -157,7 +161,7 @@ enum Polisher {
         let session = LanguageModelSession(instructions: instructions(for: r))
         do {
             let response = try await session.respond(
-                to: userPrompt(raw: raw, speechLocale: r.speechLocale, dictionary: r.dictionary),
+                to: userPrompt(raw: raw, speechLocale: r.speechLocale, dictionary: r.dictionary, corrections: r.corrections),
                 options: GenerationOptions(temperature: 0.2)
             )
             let text = TextRules.postProcess(response.content)

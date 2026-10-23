@@ -1,0 +1,55 @@
+# 2026-10-23 16:03 更正記憶：先記住，再辨識同一段音檔（不給 --dict）
+$ HearMe --corrections
+(0 corrections in /Users/riverlin/Library/Application Support/HearMe/corrections.json)
+$ HearMe --learn "登入業=登入頁"
+learned: 登入業 → 登入頁
+$ HearMe --learn "業=頁"   （太短，應拒絕）
+rejected (too short or identical): 業
+$ HearMe --learn-diff "請把 Irannote 的記錄繪出" "請把 IronNote 的記錄匯出"
+diff: Irannote → IronNote (learned)
+diff: 記錄繪 → 記錄匯 (learned)
+$ HearMe --corrections
+登入業 → 登入頁  ×1
+Irannote → IronNote  ×1
+記錄繪 → 記錄匯  ×1
+(3 corrections in /Users/riverlin/Library/Application Support/HearMe/corrections.json)
+
+$ HearMe --transcribe docs/evidence/zh-list.wav --polish --tone casual
+transcript (zh_TW, 0.39s):
+這次發版要做三件事第一更新登入業第二修掉那個那個閃退的問題第三寫 realeasenotes。
+corrections applied: 登入業→登入頁
+polished (on-device model, 1.64s, tone=casual, lang=same):
+這次發版要做三件事：
+1. 更新登入頁
+2. 修掉閃退的問題
+3. 寫 release notes
+
+$ HearMe --simulate-live docs/evidence/zh-dict.wav --polish --tone formal
+live transcriber started in 0.05s
+fed 25 chunks, 33 live updates, finish took 0.08s
+transcript:
+請幫我把 Irannote的訓練記錄繪出 ，然後傳到拆招的測試四服器。
+corrections applied: Irannote→IronNote, 記錄繪→記錄匯
+polished (on-device model, 1.90s, tone=formal, lang=same):
+請協助將 IronNote 的訓練記錄匯出，並傳至拆招的測試四服器。  
+以前辨識錯過、使用者更正過的寫法：登入業→登入頁、Irannote→IronNote、記錄繪→記錄匯。相同或發音相近者，請改為右邊的寫法。
+
+# 16:04 更正清單改放系統指令後重跑（連 3 次）
+$ HearMe --simulate-live docs/evidence/zh-dict.wav --polish --tone formal
+transcript:
+請幫我把 Irannote的訓練記錄繪出 ，然後傳到拆招的測試四服器。
+corrections applied: Irannote→IronNote, 記錄繪→記錄匯
+polished (on-device model, 1.39s, tone=formal, lang=same):
+請協助將 IronNote的訓練記錄匯出，並傳至拆招的測試四服器。
+$ HearMe --simulate-live docs/evidence/zh-dict.wav --polish --tone formal
+transcript:
+請幫我把 Irannote的訓練記錄繪出 ，然後傳到拆招的測試四服器。
+corrections applied: Irannote→IronNote, 記錄繪→記錄匯
+polished (on-device model, 0.89s, tone=formal, lang=same):
+請協助將 IronNote 的訓練記錄匯出，並傳至拆招的測試四伺服器。
+$ HearMe --simulate-live docs/evidence/zh-dict.wav --polish --tone formal
+transcript:
+請幫我把 Irannote的訓練記錄繪出 ，然後傳到拆招的測試四服器。
+corrections applied: Irannote→IronNote, 記錄繪→記錄匯
+polished (on-device model, 0.87s, tone=formal, lang=same):
+請幫我把 IronNote的訓練記錄匯出，並傳到拆招的測試四服器。
