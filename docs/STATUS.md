@@ -142,8 +142,20 @@ CEO 看過三張候選選 B，`make-icon.sh` 預設改成 B，tag v0.1.6（Relea
 - 限制：app 要放在使用者寫得到的資料夾（應用程式或 ~/Applications 都可）；App Translocation（隔離路徑）下會拒絕並提示先移到應用程式；ad-hoc 簽的開發版不會自動更新（本機 `bundle.sh` 有 keychain 時都是 HearMe Dev 簽，沒問題）。
 - **CEO 這次還是要用 croc 裝一次 v0.1.7**（第一個含更新器的版本），之後就從選單更新。沒驗的：CEO 那台的 TCC 在更新後是否仍 `ax=true`（簽章相同、路徑相同，理論上會）。
 
+## 10-26 第十輪：Apple Developer 簽章（CEO 10-26 說「我現在有 apple developer 了，請幫忙 sign」）
+公司 10-26 已有 Apple Developer team 437258HXBJ、App Store Connect API key（Admin）與 agent 用的 `apple-signing.keychain-db`（見 `../hq/ios/README.md`）。帳號上還沒有 Developer ID Application 憑證（API 查過 0 張），而 agent 建憑證會被 auto mode 分類器擋（Access Added As A Means，跟 hq/ios 當初一樣），所以做好了所有不用憑證的部分：
+- `../hq/ios/setup-developer-id.sh`：用 ASC API 建 Developer ID Application 憑證、匯入 apple-signing keychain（含 Apple 的 Developer ID G2／WWDR G3 中繼憑證）、p12 備份到 gopass `services/apple/developer-id-cert/`。**要 CEO 跑一次**（`! hq/ios/setup-developer-id.sh`）。
+- `scripts/bundle.sh`：有 Developer ID 就用它簽（`--options runtime --timestamp`＋`Resources/HearMe.entitlements` 的 `com.apple.security.device.audio-input`，hardened runtime 沒這條會收不到麥克風），沒有退回 HearMe Dev，再沒有退回 ad-hoc。已驗退回路徑：這台目前仍簽出 HearMe Dev 的指定需求。
+- `scripts/notarize.sh`：zip → `notarytool submit --wait` → `stapler staple` → `spctl -a`。金鑰從 env 或 gopass `services/apple/asc-api-key/`。
+- `Core/Updater.swift`：新 bundle 滿足「目前 app 的指定需求」**或**「Developer ID＋team OU 437258HXBJ＋identifier」其一即可，所以 HearMe Dev 簽的 app（跑這版以後的程式）可以自動換到 Developer ID 版；之後憑證到期換新也不會斷。測試 `testDeveloperIdRequirementParses`。
+- `.github/workflows/release.yml`：有 `HEARME_DEVID_P12_BASE64`／`HEARME_DEVID_P12_PASSWORD` 就匯入 Developer ID 簽（並下載 Apple 中繼憑證）；有 `HEARME_ASC_KEY_P8_BASE64`／`HEARME_ASC_KEY_ID`／`HEARME_ASC_ISSUER_ID` 就公證＋staple；都沒有就照舊 HearMe Dev。
+- 憑證建好後要做的：(1) 把 p12 與 ASC key 設成 GitHub secrets（`gh secret set` 從 gopass 讀）；(2) 本機 `bundle.sh`＋`notarize.sh` 真跑一次，`spctl -a -vv` 要看到 `source=Notarized Developer ID`；(3) tag 新版，CI 出公證過的 Release；(4) 用 HearMe Dev 簽的 app 跑更新器，驗它接受 Developer ID 版（證據補進 `run-update.txt`）。
+- 影響 CEO：裝的 v0.1.7 只認 HearMe Dev，**換成 Developer ID 的第一版要手動裝一次**，輔助使用與麥克風權限因憑證不同會再問一次；之後就穩定了，而且不再需要 `xattr -cr`。
+- **待裁決 S-5**：CI 公證要把 ASC API key 放進 GitHub secrets。現在那把是 Admin 權限，放進公開 repo 的 secrets（只有 tag push 會用、fork 的 PR 拿不到）風險可接受嗎？替代：CEO 在 App Store Connect → 使用者與存取 → 整合，另建一把 Developer 權限的 key 專供公證，告訴我 gopass 路徑。沒裁決前 CI 出的是「Developer ID 簽但沒公證」的版本（Gatekeeper 第一次開會警告，但 TCC 穩定）。
+
 ## 待裁決
-- **S-1. 要不要簽開發憑證？** 10-23 第四輪改用自簽身分先解（見上）；若 CEO 那台重打包後仍要重勾，再回來談 Apple Development 憑證。
+- **S-5. 公證用的 ASC API key 要不要放 GitHub secrets？**（見第十輪）
+- ~~S-1. 要不要簽開發憑證？~~ 10-26 CEO 開了 Apple Developer，改用 Developer ID（第十輪）。
 - **S-2. 這個 POC 要不要進點子漏斗走產品長審？** 目前是 CEO 直接交辦，沒有提案書；市場上 Typeless、Wispr Flow、superwhisper 已經很擠，差異化只有「完全不連外、免費」。
 
 ## 檔案

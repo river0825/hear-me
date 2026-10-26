@@ -273,3 +273,13 @@ final class UpdaterTests: XCTestCase {
         XCTAssertEqual(Updater.sha256Hex(Data("abc".utf8)), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
     }
 }
+
+final class UpdaterSignatureTests: XCTestCase {
+    func testDeveloperIdRequirementParses() {
+        var req: SecRequirement?
+        XCTAssertEqual(SecRequirementCreateWithString(Updater.developerIdRequirement as CFString, [], &req), errSecSuccess)
+        XCTAssertNotNil(req)
+        XCTAssertTrue(Updater.developerIdRequirement.contains("subject.OU] = \"437258HXBJ\""))
+        XCTAssertTrue(Updater.developerIdRequirement.hasPrefix("identifier \"xyz.riverdm.hearme\""))
+    }
+}

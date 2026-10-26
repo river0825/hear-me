@@ -171,9 +171,17 @@ enum Updater {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// The new bundle must satisfy the installed bundle's designated requirement
-    /// (`identifier "xyz.riverdm.hearme" and certificate leaf = H"…"` for "HearMe Dev" builds).
-    /// Ad-hoc builds carry a cdhash requirement that no other build satisfies, so they cannot self-update.
+    /// Apple Developer team that signs official builds ("Developer ID Application", hq/ios/setup-developer-id.sh).
+    static let teamId = "437258HXBJ"
+    /// Standard Developer ID designated requirement, pinned to our team and bundle identifier. Lets an app
+    /// signed with the older self-signed "HearMe Dev" identity move to Developer ID builds once, and keeps
+    /// working across certificate renewals (a renewed cert has the same team OU).
+    static let developerIdRequirement = "identifier \"xyz.riverdm.hearme\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = \"\(teamId)\""
+
+    /// The new bundle must satisfy either the installed bundle's designated requirement
+    /// (`identifier "xyz.riverdm.hearme" and certificate leaf = H"…"` for "HearMe Dev" builds) or the
+    /// Developer ID requirement above. Ad-hoc builds carry a cdhash requirement that no other build
+    /// satisfies, so they cannot self-update to anything but a Developer ID build.
     static func verifySignature(of newApp: URL, matching installed: URL) throws {
         var installedCode: SecStaticCode?
         var newCode: SecStaticCode?
@@ -183,21 +191,33 @@ enum Updater {
         guard SecStaticCodeCreateWithPath(newApp as CFURL, [], &newCode) == errSecSuccess, let newCode else {
             throw UpdateError.signature("讀不到新版本的簽章")
         }
-        var requirement: SecRequirement?
-        guard SecCodeCopyDesignatedRequirement(installedCode, [], &requirement) == errSecSuccess, let requirement else {
-            throw UpdateError.signature("目前 app 沒有指定需求")
+        var candidates: [(label: String, requirement: SecRequirement)] = []
+        var installedReq: SecRequirement?
+        if SecCodeCopyDesignatedRequirement(installedCode, [], &installedReq) == errSecSuccess, let installedReq {
+            var str: CFString?
+            SecRequirementCopyString(installedReq, [], &str)
+            candidates.append((str as String? ?? "installed DR", installedReq))
         }
-        var reqString: CFString?
-        SecRequirementCopyString(requirement, [], &reqString)
+        var devIdReq: SecRequirement?
+        if SecRequirementCreateWithString(developerIdRequirement as CFString, [], &devIdReq) == errSecSuccess, let devIdReq {
+            candidates.append(("Developer ID team \(teamId)", devIdReq))
+        }
+        guard !candidates.isEmpty else { throw UpdateError.signature("目前 app 沒有指定需求") }
+
         let flags = SecCSFlags(rawValue: kSecCSCheckAllArchitectures | kSecCSCheckNestedCode | kSecCSStrictValidate)
-        var cfError: Unmanaged<CFError>?
-        let status = SecStaticCodeCheckValidityWithErrors(newCode, flags, requirement, &cfError)
-        if status != errSecSuccess {
+        var failures: [String] = []
+        for (label, requirement) in candidates {
+            var cfError: Unmanaged<CFError>?
+            let status = SecStaticCodeCheckValidityWithErrors(newCode, flags, requirement, &cfError)
+            if status == errSecSuccess {
+                Log.info("update: new bundle satisfies [\(label)]")
+                return
+            }
             let why = (cfError?.takeRetainedValue()).map { "\($0)" } ?? "OSStatus \(status)"
-            Log.warn("update: signature check failed against [\(reqString as String? ?? "?")]: \(why)")
-            throw UpdateError.signature(why)
+            failures.append("[\(label)]: \(why)")
         }
-        Log.info("update: new bundle satisfies designated requirement [\(reqString as String? ?? "?")]")
+        Log.warn("update: signature check failed " + failures.joined(separator: "; "))
+        throw UpdateError.signature(failures.last ?? "?")
     }
 
     /// Move the old bundle aside, put the new one at its path, then trash the old one.

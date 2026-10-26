@@ -10,7 +10,7 @@ permissions:
 
 env:
   XCODE_APP: /Applications/Xcode_26.6.app
-  # scripts/bundle.sh looks for the self-signed "HearMe Dev" identity in exactly this keychain.
+  # Whichever identity the steps below import lands in this keychain; bundle.sh is told via HEARME_SIGN_IDENTITY/HEARME_SIGN_KEYCHAIN.
   SIGN_KEYCHAIN: /Users/runner/Library/Keychains/hearme-dev.keychain-db
 
 jobs:
@@ -30,7 +30,38 @@ jobs:
           sw_vers
           xcodebuild -version
 
-      - name: Import "HearMe Dev" signing identity (falls back to ad-hoc when the secret is absent)
+      - name: Import "Developer ID Application" identity (Apple Developer team 437258HXBJ)
+        id: devid
+        env:
+          P12_BASE64: ${{ secrets.HEARME_DEVID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.HEARME_DEVID_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${P12_BASE64}" ]]; then
+            echo "::notice::HEARME_DEVID_P12_BASE64 not set; falling back to the self-signed HearMe Dev identity."
+            echo "used=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          P12="$RUNNER_TEMP/devid.p12"
+          echo "$P12_BASE64" | base64 --decode > "$P12"
+          curl -sSL -o "$RUNNER_TEMP/DeveloperIDG2CA.cer" https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          curl -sSL -o "$RUNNER_TEMP/AppleWWDRCAG3.cer" https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
+          security create-keychain -p "" "$SIGN_KEYCHAIN"
+          security set-keychain-settings "$SIGN_KEYCHAIN"          # never auto-lock
+          security unlock-keychain -p "" "$SIGN_KEYCHAIN"
+          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$SIGN_KEYCHAIN" -T /usr/bin/codesign >/dev/null
+          security import "$RUNNER_TEMP/AppleWWDRCAG3.cer" -k "$SIGN_KEYCHAIN" -T /usr/bin/codesign >/dev/null
+          security import "$P12" -k "$SIGN_KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$SIGN_KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$SIGN_KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm -f "$P12"
+          security find-identity -v -p codesigning "$SIGN_KEYCHAIN" | grep -q "Developer ID Application"
+          echo "HEARME_SIGN_IDENTITY=Developer ID Application" >> "$GITHUB_ENV"
+          echo "HEARME_SIGN_KEYCHAIN=$SIGN_KEYCHAIN" >> "$GITHUB_ENV"
+          echo "used=true" >> "$GITHUB_OUTPUT"
+
+      - name: Import "HearMe Dev" signing identity (only when no Developer ID; falls back to ad-hoc when the secret is absent)
+        if: steps.devid.outputs.used != 'true'
         env:
           P12_BASE64: ${{ secrets.HEARME_SIGN_P12_BASE64 }}
           P12_PASSWORD: ${{ secrets.HEARME_SIGN_P12_PASSWORD }}
@@ -52,6 +83,8 @@ jobs:
           sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain Resources/HearMeDev.cer.pem
           rm -f "$P12"
           security find-identity -v -p codesigning "$SIGN_KEYCHAIN"
+          echo "HEARME_SIGN_IDENTITY=HearMe Dev" >> "$GITHUB_ENV"
+          echo "HEARME_SIGN_KEYCHAIN=$SIGN_KEYCHAIN" >> "$GITHUB_ENV"
 
       - name: Build and bundle HearMe.app
         env:
@@ -70,6 +103,23 @@ jobs:
           codesign --verify --deep --strict --verbose=2 build/HearMe.app
           echo "== Info.plist version =="
           /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" -c "Print :CFBundleVersion" build/HearMe.app/Contents/Info.plist
+
+      - name: Notarize and staple (Developer ID builds only; needs the App Store Connect API key secrets)
+        if: steps.devid.outputs.used == 'true'
+        env:
+          ASC_KEY_P8_BASE64: ${{ secrets.HEARME_ASC_KEY_P8_BASE64 }}
+          HEARME_ASC_KEY_ID: ${{ secrets.HEARME_ASC_KEY_ID }}
+          HEARME_ASC_ISSUER_ID: ${{ secrets.HEARME_ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$ASC_KEY_P8_BASE64" ]]; then
+            echo "::warning::HEARME_ASC_KEY_P8_BASE64 not set; shipping signed but NOT notarized (Gatekeeper will warn on first open)."
+            exit 0
+          fi
+          export HEARME_ASC_KEY_P8="$RUNNER_TEMP/AuthKey.p8"
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$HEARME_ASC_KEY_P8"
+          ./scripts/notarize.sh
+          rm -f "$HEARME_ASC_KEY_P8"
 
       - name: Zip
         run: |
@@ -100,7 +150,7 @@ jobs:
             echo
             git log --no-merges --format='- %s (%h)' ${PREV:+$PREV..}"$TAG"
             echo
-            echo "macOS 26+、Apple Silicon。解開 HearMe.zip 後把 HearMe.app 放到「應用程式」再開啟；第一次會要「輔助使用」與「麥克風」權限。"
+            echo "macOS 26+、Apple Silicon。解開 HearMe.zip 後把 HearMe.app 放到「應用程式」再開啟；第一次會要「輔助使用」與「麥克風」權限。之後的版本從選單「有新版本…下載並安裝」更新。"
             echo
           } > "$NOTES"
           cat "$NOTES"
