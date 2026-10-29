@@ -24,3 +24,29 @@ polished (rules, 0.00s, tone=general, lang=same):
 你覺得我們要不要先做登入頁 還是先修閃退
 
 # 注意：這台 Mac 跑的當下裝置端模型是 modelNotReady（系統更新模型中），以上全是規則路徑。防呆函式 looksLikeAnswerNotCleanup 有單元測試（PolishGuardTests），用 CEO 的實例驗證會被擋。提示詞改動待模型恢復後用真模型重驗。
+
+## 2026-10-29 09:36 真模型補驗（這台 Mac 的裝置端模型恢復可用）
+$ HearMe --polish-text "欸 這首歌的背景是什麼"
+raw:
+欸 這首歌的背景是什麼
+polished (on-device model, 2.49s, tone=general, lang=same):
+這首歌的背景是什麼？
+
+$ HearMe --polish-text "嗯 你覺得我們下週要不要先發 beta 版"
+raw:
+嗯 你覺得我們下週要不要先發 beta 版
+polished (on-device model, 0.82s, tone=general, lang=same):
+你覺得我們下週要不要先發 beta 版
+
+$ HearMe --polish-text "那個 幫我想一下 這個 bug 怎麼修"
+raw:
+那個 幫我想一下 這個 bug 怎麼修
+polished (on-device model, 0.69s, tone=general, lang=same):
+幫我想一下這個 bug 怎麼修。
+
+$ HearMe --polish-text "明天下午三點 不對 四點 跟客戶開會"
+raw:
+明天下午三點 不對 四點 跟客戶開會
+polished (on-device model, 0.78s, tone=general, lang=same):
+明天下午四點要跟客戶開會。
+

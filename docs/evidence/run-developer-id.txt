@@ -1,0 +1,25 @@
+# 2026-10-29 09:35 Developer ID：公證、Gatekeeper、自簽版自動更新到公證版
+
+## 1. 從 GitHub 下載 v0.2.0，加上瀏覽器的隔離標記，Gatekeeper 評估
+$ curl -L …/releases/download/v0.2.0/HearMe.zip; xattr -w com.apple.quarantine …; ditto -x -k; spctl -a -vv -t exec HearMe.app
+sha256 94f0f45eebebcd332e6f86435ddedb4aec6b13340a037916695a49e902903756
+HearMe.app: accepted
+source=Notarized Developer ID
+origin=Developer ID Application: HungHao lin (437258HXBJ)
+stapler validate: The validate action worked!
+
+## 2. 更新器的需求字串（codesign -R＝SecStaticCodeCheckValidity 同一套檢查）
+公證版：accepted；同一份改用 HearMe Dev 簽：code failed to satisfy specified code requirement(s)
+
+## 3. GUI：~/Applications 放 HearMe Dev 簽的 0.1.8（含新更新器），HEARME_UPDATE_NOW=1 啟動
+2026-10-29 09:35:07.935 launched 0.1.8 on 版本27.0（版號26A428）; ax=true mic=尚未詢問 model=可用
+2026-10-29 09:35:08.986 update: latest v0.2.0, current 0.1.8
+2026-10-29 09:35:10.711 update: sha256 ok 94f0f45eebebcd332e6f86435ddedb4aec6b13340a037916695a49e902903756
+2026-10-29 09:35:10.732 update: new bundle satisfies [Developer ID team 437258HXBJ]
+2026-10-29 09:35:10.754 update: installed v0.2.0 at /Users/riverlin/Applications/HearMe.app
+2026-10-29 09:35:10.754 update: relaunching v0.2.0
+2026-10-29 09:35:10.755 update: relaunch helper started for /Users/riverlin/Applications/HearMe.app
+2026-10-29 09:35:11.331 launched 0.2.0 on 版本27.0（版號26A428）; ax=false mic=尚未詢問 model=可用
+2026-10-29 09:35:11.473 update: latest v0.2.0, current 0.2.0
+→ 新程序跑的是 ~/Applications/HearMe.app，Authority=Developer ID Application，flags=runtime，版本 0.2.0
+→ ax 由 true 變 false：換憑證後輔助使用要重勾一次（預期，只發生這一次）

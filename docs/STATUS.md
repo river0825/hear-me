@@ -157,6 +157,8 @@ CEO 看過三張候選選 B，`make-icon.sh` 預設改成 B，tag v0.1.6（Relea
 - ASC API 建 Developer ID 被 Apple 擋：403「This operation can only be performed by the Account Holder」。改成 `setup-developer-id.sh --csr` 在這台產私鑰＋CSR → CEO 在 developer.apple.com 建 → `--import`。憑證 `Developer ID Application: HungHao lin (437258HXBJ)`，cert id PCZ3JLCRAR，到期 2027-11-28；p12 在 gopass `services/apple/developer-id-cert/`。
 - `bundle.sh` 簽出 `flags=0x10000(runtime)`、Authority 鏈到 Apple Root CA、有時戳、帶麥克風 entitlement；指定需求＝`Updater.developerIdRequirement`。`notarize.sh` 送 Apple：Accepted，staple 成功，`spctl -a -vv` → `source=Notarized Developer ID`。（順手修了 notarize.sh 兩個誤判：pipefail＋`grep -q` 的 SIGPIPE、`codesign -dv` 預設不印 Authority。）
 - 用 `codesign -R` 驗更新器的需求字串：公證版通過、同一份改用 HearMe Dev 簽就失敗。
+- 已發 **v0.2.0**（第一個公證版）。證據 `docs/evidence/run-developer-id.txt`：(1) 從 GitHub 下載、加上瀏覽器隔離標記後 `spctl` → accepted、`source=Notarized Developer ID`；(2) HearMe Dev 簽的 0.1.8 自動更新到 v0.2.0，3 秒，log `new bundle satisfies [Developer ID team 437258HXBJ]`，新程序是 Developer ID、hardened runtime；`ax` 由 true 變 false，換憑證要重勾一次（預期）；(3) CI 的 v0.2.0 run 印出「already has HearMe.zip … not uploaded」，Release 上的 sha256 仍是公證版。
+- 這台 Mac 的裝置端模型恢復可用，問句防呆用真模型補驗過（`run-question-guard.txt`）：「欸 這首歌的背景是什麼」→「這首歌的背景是什麼？」，沒有回答；改口、晶晶體也對。
 - 發版改由這台 Mac：`scripts/release-local.sh <版本>`（bundle → 公證 → zip＋sha256 → `gh release create`）。CI 看到 Release 已有 HearMe.zip 且自己不是 Developer ID 簽的，就不上傳，避免自簽版蓋掉公證版。S-5 若核准把 Developer ID p12 與 ASC key 放進 GitHub secrets，CI 就能自己公證，release-local.sh 變成備援。
 
 ## 待裁決
