@@ -153,8 +153,14 @@ CEO 看過三張候選選 B，`make-icon.sh` 預設改成 B，tag v0.1.6（Relea
 - 影響 CEO：裝的 v0.1.7 只認 HearMe Dev，**換成 Developer ID 的第一版要手動裝一次**，輔助使用與麥克風權限因憑證不同會再問一次；之後就穩定了，而且不再需要 `xattr -cr`。
 - **待裁決 S-5**：CI 公證要把 ASC API key 放進 GitHub secrets。現在那把是 Admin 權限，放進公開 repo 的 secrets（只有 tag push 會用、fork 的 PR 拿不到）風險可接受嗎？替代：CEO 在 App Store Connect → 使用者與存取 → 整合，另建一把 Developer 權限的 key 專供公證，告訴我 gopass 路徑。沒裁決前 CI 出的是「Developer ID 簽但沒公證」的版本（Gatekeeper 第一次開會警告，但 TCC 穩定）。
 
+## 10-29 第十一輪：Developer ID 憑證到位、第一個公證版 v0.2.0
+- ASC API 建 Developer ID 被 Apple 擋：403「This operation can only be performed by the Account Holder」。改成 `setup-developer-id.sh --csr` 在這台產私鑰＋CSR → CEO 在 developer.apple.com 建 → `--import`。憑證 `Developer ID Application: HungHao lin (437258HXBJ)`，cert id PCZ3JLCRAR，到期 2027-11-28；p12 在 gopass `services/apple/developer-id-cert/`。
+- `bundle.sh` 簽出 `flags=0x10000(runtime)`、Authority 鏈到 Apple Root CA、有時戳、帶麥克風 entitlement；指定需求＝`Updater.developerIdRequirement`。`notarize.sh` 送 Apple：Accepted，staple 成功，`spctl -a -vv` → `source=Notarized Developer ID`。（順手修了 notarize.sh 兩個誤判：pipefail＋`grep -q` 的 SIGPIPE、`codesign -dv` 預設不印 Authority。）
+- 用 `codesign -R` 驗更新器的需求字串：公證版通過、同一份改用 HearMe Dev 簽就失敗。
+- 發版改由這台 Mac：`scripts/release-local.sh <版本>`（bundle → 公證 → zip＋sha256 → `gh release create`）。CI 看到 Release 已有 HearMe.zip 且自己不是 Developer ID 簽的，就不上傳，避免自簽版蓋掉公證版。S-5 若核准把 Developer ID p12 與 ASC key 放進 GitHub secrets，CI 就能自己公證，release-local.sh 變成備援。
+
 ## 待裁決
-- **S-5. 公證用的 ASC API key 要不要放 GitHub secrets？**（見第十輪）
+- **S-5. 要不要讓 CI 自己簽章與公證？** 需要把 Developer ID p12 與 ASC API key 放進 GitHub secrets（公開 repo，只有 tag push 用得到）。不放也行：現在用 `scripts/release-local.sh` 從這台 Mac 發公證版，缺點是發版要這台 Mac 開著。
 - ~~S-1. 要不要簽開發憑證？~~ 10-26 CEO 開了 Apple Developer，改用 Developer ID（第十輪）。
 - **S-2. 這個 POC 要不要進點子漏斗走產品長審？** 目前是 CEO 直接交辦，沒有提案書；市場上 Typeless、Wispr Flow、superwhisper 已經很擠，差異化只有「完全不連外、免費」。
 

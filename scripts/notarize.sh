@@ -8,7 +8,9 @@ set -euo pipefail
 ROOT="$(builtin cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/build/HearMe.app"
 [[ -d "$APP" ]] || { echo "no $APP — run scripts/bundle.sh first" >&2; exit 1; }
-codesign -dv "$APP" 2>&1 | grep -q "^Authority=Developer ID Application" || { echo "$APP is not signed with Developer ID Application; notarization would be rejected" >&2; exit 1; }
+# Capture first: with pipefail, `grep -q` closing the pipe early makes codesign die of SIGPIPE.
+SIGINFO="$(codesign -dv --verbose=2 "$APP" 2>&1 || true)"
+[[ "$SIGINFO" == *"Authority=Developer ID Application"* ]] || { echo "$APP is not signed with Developer ID Application; notarization would be rejected" >&2; exit 1; }
 
 WORK="$(mktemp -d)"; chmod 700 "$WORK"; trap 'rm -rf "$WORK"' EXIT
 decrypt() {

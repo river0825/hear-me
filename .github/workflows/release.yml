@@ -155,7 +155,13 @@ jobs:
           } > "$NOTES"
           cat "$NOTES"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" build/HearMe.zip build/HearMe.zip.sha256 --clobber
+            # scripts/release-local.sh publishes notarized Developer ID builds from the dev Mac before the tag
+            # reaches CI. Never overwrite a Developer ID asset with this runner's (possibly self-signed) build.
+            if [[ "${{ steps.devid.outputs.used }}" != "true" ]] && gh release view "$TAG" --json assets --jq '.assets[].name' | grep -qx HearMe.zip; then
+              echo "::notice::$TAG already has HearMe.zip (published by release-local.sh); CI build is not uploaded."
+            else
+              gh release upload "$TAG" build/HearMe.zip build/HearMe.zip.sha256 --clobber
+            fi
           else
             gh release create "$TAG" build/HearMe.zip build/HearMe.zip.sha256 \
               --title "Hear Me $TAG" --notes-file "$NOTES" --generate-notes --verify-tag
