@@ -161,6 +161,12 @@ CEO 看過三張候選選 B，`make-icon.sh` 預設改成 B，tag v0.1.6（Relea
 - 這台 Mac 的裝置端模型恢復可用，問句防呆用真模型補驗過（`run-question-guard.txt`）：「欸 這首歌的背景是什麼」→「這首歌的背景是什麼？」，沒有回答；改口、晶晶體也對。
 - 發版改由這台 Mac：`scripts/release-local.sh <版本>`（bundle → 公證 → zip＋sha256 → `gh release create`）。CI 看到 Release 已有 HearMe.zip 且自己不是 Developer ID 簽的，就不上傳，避免自簽版蓋掉公證版。S-5 若核准把 Developer ID p12 與 ASC key 放進 GitHub secrets，CI 就能自己公證，release-local.sh 變成備援。
 
+## 11-03 回報巡檢：使用者說「未驗證的開發者」打不開
+- 來源：客服信（mail-bug `2026-11-03T0934-8aba58b9`）。任務檔 `../hq/tasks/2026-11-03-hearme-feedback-1.md`。
+- 從 GitHub 下載最新 Release v0.2.0、加 Safari 隔離標記後驗：`spctl` → accepted、`source=Notarized Developer ID`，`stapler validate` 通過，zip sha256 與 Release 附檔一致。對照 v0.1.7：`rejected`、`origin=HearMe Dev`、沒 ticket。證據 `docs/evidence/run-gatekeeper-2026-11-03.txt`。
+- 結論：最新版沒問題，不用補公證；使用者很可能裝到 v0.1.7 以前的自簽版。README 安裝第 4 點與 KB 改成先確認版本（取得資訊／`spctl -a -vv`）、刪舊版重抓 releases/latest、最新版仍跳警告再回報。S-5 不變。
+- 回覆使用者由 PM／客服處理（建議內容見任務檔「## 結果」）。
+
 ## 待裁決
 - **S-5. 要不要讓 CI 自己簽章與公證？** 需要把 Developer ID p12 與 ASC API key 放進 GitHub secrets（公開 repo，只有 tag push 用得到）。不放也行：現在用 `scripts/release-local.sh` 從這台 Mac 發公證版，缺點是發版要這台 Mac 開著。
 - ~~S-1. 要不要簽開發憑證？~~ 10-26 CEO 開了 Apple Developer，改用 Developer ID（第十輪）。

@@ -44,7 +44,11 @@ macOS 選單列的語音輸入工具。按住 fn（或右 ⌥、右 ⌘）說話
 1. 到 [Releases](https://github.com/river0825/hear-me/releases) 下載 `HearMe.zip`，解壓後把 `HearMe.app` 放進「應用程式」。
 2. 第一次打開：這個 app 沒有 Dock 圖示也沒有主視窗，只會在選單列出現一個麥克風圖示。系統會要「輔助使用」權限（之後第一次聽寫時要麥克風）。
 3. 用 fn 鍵的話，到「系統設定 → 鍵盤 → 按下 🌐 鍵時」改成「不做任何動作」，否則系統自己的聽寫會跟著跳出來；或在設定裡改成右 ⌥。
-4. 若系統說無法打開（未驗證的開發者）：`xattr -cr /Applications/HearMe.app` 後再開。v0.1.7 以前用自簽憑證；之後的版本改用 Apple Developer ID 簽（公證後這步就不需要了）。
+4. 若系統說「無法打開，因為無法驗證開發者」（未驗證的開發者）：
+   - **先確認版本**：v0.2.0 起的版本都用 Apple Developer ID 簽並經 Apple 公證，正常不會出現這個警告。出現的話，多半是裝到了 v0.1.7 以前的自簽版（例如舊的下載檔、或從 Releases 往下捲點到舊版）。在 Finder 對 `HearMe.app` 按右鍵 →「取得資訊」看版本，或在終端機跑 `spctl -a -vv /Applications/HearMe.app`：公證版會顯示 `accepted` 與 `source=Notarized Developer ID`，自簽版顯示 `rejected`、`origin=HearMe Dev`。
+   - **處理**：刪掉舊的 `HearMe.app`，到 [最新 Release](https://github.com/river0825/hear-me/releases/latest) 重新下載 `HearMe.zip`（不是「Source code」），解壓後放進「應用程式」再開。從自簽版換過來要重新允許一次輔助使用與麥克風。
+   - 一定要用舊版的話：`xattr -cr /Applications/HearMe.app` 後再開。
+   - 最新版也出現這個警告，請回報（附上 `spctl -a -vv` 的輸出）。
 5. 之後的更新不用再回來下載：app 啟動時與每 6 小時向 GitHub 查一次最新版本號（可在設定關掉），有新版會在選單最上面出現「有新版本 vX.Y.Z，下載並安裝…」，按一下就下載、核對 sha256 與簽章、換掉 app 並重新啟動。也可以選單「檢查更新…」手動查。
 
 ## 使用

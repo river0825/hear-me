@@ -1,0 +1,38 @@
+# Gatekeeper check of GitHub Releases (feedback 2026-11-03T0934-8aba58b9)
+# date: 2026-11-03 11:24 CST  host macOS: 27.0
+# method: gh release download -> xattr com.apple.quarantine (Safari) -> ditto -x -k -> spctl/stapler/codesign
+
+## latest release
+Hear Me v0.2.0	Latest	v0.2.0	2026-10-29T01:34:41Z
+
+## v0.2.0
+$ shasum -a 256 HearMe.zip; cat HearMe.zip.sha256
+94f0f45eebebcd332e6f86435ddedb4aec6b13340a037916695a49e902903756  HearMe.zip
+94f0f45eebebcd332e6f86435ddedb4aec6b13340a037916695a49e902903756  HearMe.zip
+$ xattr -p com.apple.quarantine HearMe.zip
+0081;6ae953e9;Safari;
+$ spctl -a -vv -t execute HearMe.app
+out/HearMe.app: accepted
+source=Notarized Developer ID
+origin=Developer ID Application: HungHao lin (437258HXBJ)
+$ xcrun stapler validate HearMe.app
+Processing: <scratch>/rel-v020/out/HearMe.app
+The validate action worked!
+$ codesign -dvv HearMe.app (Authority/Team)
+Authority=Developer ID Application: HungHao lin (437258HXBJ)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+TeamIdentifier=437258HXBJ
+
+## v0.1.7
+$ xattr -p com.apple.quarantine HearMe.zip
+0081;6ae953f2;Safari;
+$ spctl -a -vv -t execute HearMe.app
+out/HearMe.app: rejected
+origin=HearMe Dev
+$ xcrun stapler validate HearMe.app
+Processing: <scratch>/rel-v017/out/HearMe.app
+HearMe.app does not have a ticket stapled to it.
+$ codesign -dvv HearMe.app (Authority/Team)
+Authority=HearMe Dev
+TeamIdentifier=not set
